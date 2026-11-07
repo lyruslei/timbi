@@ -15,7 +15,7 @@ New food (items)
 
 Saved foods (saved)
 - If the user eats a food that is in My foods, put {id, servings} in saved and do NOT also put it in items. Never estimate numbers for a saved food.
-- If two saved foods could both be meant (e.g. two flavours) and the message doesn't say which, log nothing and ask which one.
+- Before using a saved food, check every saved food in the context. If more than one could match the words the user used (e.g. "testo bar" when both "Testo bar peanut" and "Testo bar choco" are saved) and the message does not include the word that tells them apart, you MUST log nothing and ask which one, naming the options. Never pick one yourself.
 
 Corrections (edits)
 - "it was 3 eggs", "the rice was 200g": edit the existing food by its id with remove false and the full corrected item. "remove the coke": {id, remove: true, item: null}.

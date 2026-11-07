@@ -213,3 +213,13 @@ test('no calories note for questions or food logged to another day', async () =>
   assert.equal((await chat({ text: 'hi' }, store, aiSays({ reply: 'Hello!' }))).reply, 'Hello!');
   assert.equal((await chat({ text: 'yesterday 2 eggs' }, store, aiSays({ items: [egg], log_day: YDAY, reply: 'Logged to yesterday.' }))).reply, 'Logged to yesterday.');
 });
+
+test('photo the AI service rejects → says the photo could not be read; nothing saved', async (t) => {
+  t.mock.method(console, 'error', () => {});
+  const store = fakeStore();
+  const r = await chat({ text: '', image: { media_type: 'image/png', data: 'AAAA' } }, store,
+    async () => { throw Object.assign(new Error('Could not process image'), { status: 400 }); });
+  assert.equal(r.failed, true);
+  assert.match(r.reply, /couldn't read that photo/i);
+  assert.equal(store.turns, 0);
+});

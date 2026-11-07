@@ -21,7 +21,7 @@ function addVercelHelpers(res) {
 http.createServer(async (req, res) => {
   addVercelHelpers(res);
   const url = new URL(req.url, `http://localhost:${PORT}`);
-  const match = /^\/api\/([a-z]+)$/.exec(url.pathname);
+  const match = /^\/api\/([a-z][a-z-]*)$/.exec(url.pathname);
   const file = match && join(here, 'api', `${match[1]}.js`);
   if (!file || !existsSync(file)) return res.status(404).json({ error: 'Not found' });
 

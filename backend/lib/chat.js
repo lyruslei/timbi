@@ -9,6 +9,7 @@ import { addDays } from './days.js';
 import { HttpError } from './http.js';
 
 export const FAIL_REPLY = "Couldn't log that — try again.";
+export const PHOTO_FAIL_REPLY = "Couldn't read that photo. Try a clearer, closer shot.";
 export const GOALS_REJECTED_NOTE = "I didn't change your goals: calories must be 500–10,000 and each macro 0–1,000g.";
 const MAX_TEXT = 1000;
 const HISTORY = 10;
@@ -68,7 +69,9 @@ export async function handleChat({ text, day, today, image = null, tz = 0 } = {}
     });
   } catch (err) {
     console.error('chat failed:', err?.message ?? err, raw === undefined ? '' : JSON.stringify(raw).slice(0, 1500));
-    return { reply: FAIL_REPLY, totals, goals, failed: true, logDay: day, saveOffer: null };
+    // The AI service refusing the image itself (corrupt, too small) isn't worth a blind retry.
+    const reply = image && err?.status === 400 ? PHOTO_FAIL_REPLY : FAIL_REPLY;
+    return { reply, totals, goals, failed: true, logDay: day, saveOffer: null };
   }
 
   const newItems = [...turn.items, ...expandSaved(turn.saved, myFoods)];
