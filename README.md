@@ -1,4 +1,6 @@
-# Bitelog
+# timbi
+
+_(formerly Bitelog)_
 
 A personal food tracker you use by chatting. Type what you ate ("2 eggs and a slice of toast"), Claude Haiku 5.5 estimates the calories and macros, and two charts at the top update: a calorie ring (eaten vs. goal) and a protein / carbs / fat pie.
 

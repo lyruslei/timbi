@@ -37,4 +37,4 @@ http.createServer(async (req, res) => {
   const { default: handler } = await import(pathToFileURL(file).href);
   await handler(req, res);
   console.log(`${req.method} ${url.pathname} → ${res.statusCode}`);
-}).listen(PORT, () => console.log(`Bitelog backend on http://localhost:${PORT}`));
+}).listen(PORT, () => console.log(`timbi backend on http://localhost:${PORT}`));

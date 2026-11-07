@@ -1,4 +1,4 @@
--- Bitelog schema. Only the backend (service-role key) touches these tables;
+-- timbi schema. Only the backend (service-role key) touches these tables;
 -- RLS is on with no policies, so the public anon key can read nothing.
 
 create table goals (

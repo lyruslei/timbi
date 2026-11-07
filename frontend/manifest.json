@@ -1,6 +1,6 @@
 {
-  "name": "Bitelog",
-  "short_name": "Bitelog",
+  "name": "timbi",
+  "short_name": "timbi",
   "description": "Log what you eat by chatting. Calories and macros at a glance.",
   "start_url": "/",
   "display": "standalone",

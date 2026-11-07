@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>Bitelog</title>
+  <title>timbi</title>
   <meta name="description" content="Log what you eat by chatting. Calories and macros at a glance.">
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#000000">
@@ -12,7 +12,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="Bitelog">
+  <meta name="apple-mobile-web-app-title" content="timbi">
   <link rel="stylesheet" href="style.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
   <script type="module" src="app.js"></script>
@@ -20,7 +20,7 @@
 <body>
   <!-- Login -->
   <main id="login-view" class="login" hidden>
-    <h1 class="title">Bitelog</h1>
+    <h1 class="wordmark large" aria-label="timbi">t<span class="i">ı</span>mb<span class="i">ı</span></h1>
     <p class="muted">Enter your password to open your food log.</p>
     <form id="login-form" class="login-form">
       <label for="password" class="sr-only">Password</label>
@@ -33,7 +33,7 @@
   <!-- App -->
   <div id="app-view" class="app" hidden>
     <header class="top">
-      <h1 class="title">Bitelog</h1>
+      <h1 class="wordmark" aria-label="timbi">t<span class="i">ı</span>mb<span class="i">ı</span></h1>
       <button id="goals-button" class="icon-button" aria-label="Edit daily goals" title="Edit daily goals">
         <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path fill="currentColor" d="M19.4 13a7.5 7.5 0 0 0 0-2l2-1.6-2-3.4-2.4 1a7.6 7.6 0 0 0-1.7-1L15 3.5h-4l-.4 2.5a7.6 7.6 0 0 0-1.7 1l-2.4-1-2 3.4L6.6 11a7.5 7.5 0 0 0 0 2l-2 1.6 2 3.4 2.4-1c.5.4 1.1.7 1.7 1l.4 2.5h4l.4-2.5c.6-.3 1.2-.6 1.7-1l2.4 1 2-3.4zM13 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7z" transform="translate(-1 0)"/></svg>
       </button>
@@ -117,6 +117,7 @@
 
     <div id="select-bar" class="select-bar" hidden>
       <span id="select-count">0 selected</span>
+      <button id="select-all" type="button" class="pill">Select all</button>
       <button id="move-selected" type="button" class="pill">Move</button>
       <button id="remove-selected" type="button" class="pill">Remove</button>
     </div>

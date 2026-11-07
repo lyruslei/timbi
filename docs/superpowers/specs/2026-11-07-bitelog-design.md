@@ -1,4 +1,4 @@
-# Bitelog — Design Spec
+# timbi (formerly Bitelog) — Design Spec
 
 **Date:** 2026-11-07
 **Status:** Draft, awaiting review
@@ -21,7 +21,7 @@ calories and macros, logs them, and two charts at the top of the screen update.
 
 | Topic | Decision |
 |---|---|
-| Name | Bitelog |
+| Name | timbi, all lowercase (renamed from Bitelog on 2026-11-08) |
 | Platform | Web app first, phone-ready (PWA) from day one |
 | AI | Claude API, Claude Haiku 5.5 (fast, ~$0.20–0.30/month); tried Gemini free tier on 2026-11-07, dropped as too slow when busy |
 | Goals | Typed in manually (settings panel or via chat) |

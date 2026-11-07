@@ -51,7 +51,7 @@ $('login-form').addEventListener('submit', async (e) => {
     $('password').value = '';
     await showApp();
   } catch (ex) {
-    err.textContent = ex.status === 401 ? 'That password is wrong. Try again.' : "Couldn't reach Bitelog. Check your connection and try again.";
+    err.textContent = ex.status === 401 ? 'That password is wrong. Try again.' : "Couldn't reach timbi. Check your connection and try again.";
     err.hidden = false;
   } finally {
     btn.disabled = false;
@@ -99,8 +99,10 @@ function renderTotals(totals, newGoals) {
   if (split.empty) {
     mds.data = [1];
     mds.backgroundColor = [css('--card-raised')];
+    mds.borderWidth = 0; // a lone slice would show its edge as a seam
   } else {
     mds.data = [split.grams.protein, split.grams.carbs, split.grams.fat];
+    mds.borderWidth = 2;
     mds.backgroundColor = [css('--lime'), css('--lime-dark'), css('--lime-pale')];
   }
   macroChart.update();
@@ -398,7 +400,15 @@ function renderSelectBar() {
   $('select-bar').hidden = !selecting;
   $('select-count').textContent = `${chosen.size} selected`;
   $('move-selected').disabled = $('remove-selected').disabled = chosen.size === 0;
+  $('select-all').textContent = allChosen() ? 'Deselect all' : 'Select all';
 }
+
+const allChosen = () => dayEntries.length > 0 && dayEntries.every((e) => chosen.has(e.id));
+$('select-all').addEventListener('click', () => {
+  if (allChosen()) chosen.clear();
+  else dayEntries.forEach((e) => chosen.add(e.id));
+  renderFoods();
+});
 
 function setStatus(text) {
   $('foods-status').textContent = text;
