@@ -7,7 +7,7 @@
     "dev": "node --env-file=.env.local dev-server.js"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^1.6.0",
+    "@google/genai": "^3.0.0",
     "@supabase/supabase-js": "^2.119.0"
   },
   "engines": {

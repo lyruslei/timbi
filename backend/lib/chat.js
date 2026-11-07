@@ -8,7 +8,7 @@ export const GOALS_REJECTED_NOTE = "I didn't change your goals: calories must be
 const MAX_TEXT = 1000;
 const HISTORY = 10;
 
-export async function handleChat({ text, day } = {}, { claude, store }) {
+export async function handleChat({ text, day } = {}, { ai, store }) {
   const clean = typeof text === 'string' ? text.trim() : '';
   if (!clean) throw new HttpError(400, 'Message is empty');
   if (clean.length > MAX_TEXT) throw new HttpError(400, `Message is over ${MAX_TEXT} characters`);
@@ -21,7 +21,7 @@ export async function handleChat({ text, day } = {}, { claude, store }) {
 
   let result;
   try {
-    const raw = await claude({ text: clean, history: messages.slice(-HISTORY), totals, goals });
+    const raw = await ai({ text: clean, history: messages.slice(-HISTORY), totals, goals });
     result = validateClaudeResult(raw);
   } catch (err) {
     console.error('chat failed:', err);

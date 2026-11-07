@@ -1,10 +1,11 @@
-// The only file that talks to Claude. Returns the raw parsed JSON; chat.js validates it.
+// The only file that talks to the AI (Google Gemini, free tier).
+// Returns the raw parsed JSON; chat.js validates it.
 
-export const DEFAULT_MODEL = 'claude-opus-5-5';
+export const DEFAULT_MODEL = 'gemini-2.5-flash';
 
 const SYSTEM = `You are Bitelog, a friendly food-logging assistant inside a calorie tracker.
 
-For every user message, answer with the JSON object the response format describes:
+For every user message, answer with the JSON object the response schema describes:
 - items: one entry per food the user says they ate or drank. Estimate kcal, protein, carbs and fat in grams. The numbers are totals for the stated quantity, not per unit. qty is how many of that food (e.g. 2 for "2 eggs"; 1 for "a bowl of rice").
 - If a portion is unclear, assume a typical serving and say what you assumed in reply.
 - If the user only asks a question or chats, return items as an empty list.
@@ -43,27 +44,27 @@ const SCHEMA = {
   },
 };
 
-function toMessages(history, text, totals, goals) {
-  const msgs = history.map((m) => ({ role: m.role === 'bot' ? 'assistant' : 'user', content: m.text }));
-  while (msgs.length && msgs[0].role === 'assistant') msgs.shift(); // must start with a user turn
+function toContents(history, text, totals, goals) {
+  const contents = history.map((m) => ({ role: m.role === 'bot' ? 'model' : 'user', parts: [{ text: m.text }] }));
+  while (contents.length && contents[0].role === 'model') contents.shift(); // must start with a user turn
   const context = `[Today so far: ${JSON.stringify(totals)}. Goals: ${JSON.stringify(goals)}]`;
-  msgs.push({ role: 'user', content: `${context}\n\n${text}` });
-  return msgs;
+  contents.push({ role: 'user', parts: [{ text: `${context}\n\n${text}` }] });
+  return contents;
 }
 
-export async function askClaude({ text, history = [], totals, goals }, { client, model = DEFAULT_MODEL }) {
-  const response = await client.messages.create({
+export async function askGemini({ text, history = [], totals, goals }, { client, model = DEFAULT_MODEL }) {
+  const response = await client.models.generateContent({
     model,
-    max_tokens: 4000,
-    system: SYSTEM,
-    output_config: { effort: 'low', format: { type: 'json_schema', schema: SCHEMA } },
-    messages: toMessages(history, text, totals, goals),
+    contents: toContents(history, text, totals, goals),
+    config: {
+      systemInstruction: SYSTEM,
+      responseMimeType: 'application/json',
+      responseJsonSchema: SCHEMA,
+    },
   });
 
-  if (response.stop_reason !== 'end_turn') {
-    throw new Error(`Claude stopped with ${response.stop_reason}`);
-  }
-  const block = response.content.find((b) => b.type === 'text');
-  if (!block) throw new Error('Claude returned no text');
-  return JSON.parse(block.text);
+  const reason = response.candidates?.[0]?.finishReason;
+  if (reason && reason !== 'STOP') throw new Error(`Gemini stopped with ${reason}`);
+  if (!response.text) throw new Error('Gemini returned no text');
+  return JSON.parse(response.text);
 }
