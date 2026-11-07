@@ -278,7 +278,9 @@ input::placeholder { color: var(--gray); }
 .msg { max-width: 85%; margin: 0; overflow-wrap: anywhere; }
 .msg.user {
   align-self: flex-end;
-  background: var(--card);
+  background: var(--lime);
+  color: var(--black);
+  font-weight: 500;
   padding: 0.6rem 1rem;
   border-radius: 20px 20px 6px 20px;
 }
