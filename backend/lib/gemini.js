@@ -1,7 +1,12 @@
 // The only file that talks to the AI (Google Gemini, free tier).
 // Returns the raw parsed JSON; chat.js validates it.
 
-export const DEFAULT_MODEL = 'gemini-2.5-flash';
+// Tried in order. If Google says a model is busy (503), rate-limited (429) or it
+// times out, the next one is tried, so a busy moment doesn't stall the chat.
+export const MODELS = ['gemini-3.8-flash', 'gemini-3.5-flash', 'gemini-3.1-flash-lite'];
+export const DEFAULT_MODEL = MODELS[0];
+// Per-attempt limit and no hidden SDK retries; pass these when creating the client.
+export const HTTP_OPTIONS = { timeout: 15000, retryOptions: { attempts: 1 } };
 
 const SYSTEM = `You are Bitelog, a friendly food-logging assistant inside a calorie tracker.
 
@@ -67,4 +72,24 @@ export async function askGemini({ text, history = [], totals, goals }, { client,
   if (reason && reason !== 'STOP') throw new Error(`Gemini stopped with ${reason}`);
   if (!response.text) throw new Error('Gemini returned no text');
   return JSON.parse(response.text);
+}
+
+function isBusy(err) {
+  if (err?.status === 503 || err?.status === 429) return true;
+  if (err?.name === 'AbortError' || err?.name === 'TimeoutError') return true;
+  return /timed? ?out|timeout|aborted/i.test(String(err?.message));
+}
+
+export async function askWithFallback(args, { client, models = MODELS }) {
+  let lastErr;
+  for (const model of models) {
+    try {
+      return await askGemini(args, { client, model });
+    } catch (err) {
+      if (!isBusy(err)) throw err;
+      console.error(`${model} busy, trying next:`, err.status ?? err.name);
+      lastErr = err;
+    }
+  }
+  throw lastErr;
 }

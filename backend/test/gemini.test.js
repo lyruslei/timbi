@@ -57,3 +57,48 @@ test('empty answer throws', async () => {
   const client = fakeClient({ text: undefined, candidates: [] });
   await assert.rejects(askGemini(args, { client, model: 'm' }));
 });
+
+// ---- fallback across models when Google is busy ----
+import { askWithFallback, MODELS } from '../lib/gemini.js';
+
+function scriptedClient(script) {
+  const tried = [];
+  return {
+    tried,
+    models: {
+      generateContent: async ({ model }) => {
+        tried.push(model);
+        const step = script[model];
+        if (step instanceof Error) throw step;
+        return step;
+      },
+    },
+  };
+}
+const httpError = (status) => Object.assign(new Error(`HTTP ${status}`), { status });
+
+test('fallback list starts with 3.8 flash', () => assert.equal(MODELS[0], 'gemini-3.8-flash'));
+
+test('busy model (503) falls back to the next one', async () => {
+  const client = scriptedClient({ a: httpError(503), b: ok(out) });
+  assert.deepEqual(await askWithFallback(args, { client, models: ['a', 'b'] }), out);
+  assert.deepEqual(client.tried, ['a', 'b']);
+});
+
+test('rate limit (429) and timeouts also fall back', async () => {
+  const timeout = Object.assign(new Error('timed out'), { name: 'AbortError' });
+  const client = scriptedClient({ a: httpError(429), b: timeout, c: ok(out) });
+  assert.deepEqual(await askWithFallback(args, { client, models: ['a', 'b', 'c'] }), out);
+  assert.deepEqual(client.tried, ['a', 'b', 'c']);
+});
+
+test('a non-busy error (400) does not try other models', async () => {
+  const client = scriptedClient({ a: httpError(400), b: ok(out) });
+  await assert.rejects(askWithFallback(args, { client, models: ['a', 'b'] }));
+  assert.deepEqual(client.tried, ['a']);
+});
+
+test('all models busy → throws', async () => {
+  const client = scriptedClient({ a: httpError(503), b: httpError(503) });
+  await assert.rejects(askWithFallback(args, { client, models: ['a', 'b'] }));
+});

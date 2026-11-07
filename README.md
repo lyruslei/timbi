@@ -15,7 +15,7 @@ A personal food tracker you use by chatting. Type what you ate ("2 eggs and a sl
    - `APP_PASSWORD` — at least 12 characters, or login is disabled
    - `TOKEN_SECRET` — long random string, e.g. `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`
    - `FRONTEND_ORIGIN` — the frontend's exact URL, no trailing slash
-   - `GEMINI_MODEL` — optional, defaults to `gemini-2.5-flash`
+   - `GEMINI_MODEL` — optional model to try first; by default it tries `gemini-3.8-flash`, then `gemini-3.5-flash`, then `gemini-3.1-flash-lite` when Google is busy
 3. **Frontend.** Set `BACKEND_URL` in `frontend/config.js` to the backend's URL.
 
 ## Run locally
