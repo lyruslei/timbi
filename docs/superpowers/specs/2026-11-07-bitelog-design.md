@@ -193,7 +193,10 @@ saved in one transaction.
 ### 13.2 Past days in plain words
 "yesterday I had pancit" logs to yesterday. The AI returns a log day; the
 backend accepts it only if it is not after the client's today and at most 60
-days back, otherwise it uses the viewed day. Chat messages stay on the day the
+days back. A named day outside that range fails the turn with "I can only log
+food from today back to 60 days ago" (nothing is logged). Moving a food by chat
+= copy it to the new day + remove the original, in one transaction (copies run
+first). Chat messages stay on the day the
 user was viewing; the reply says where the food went ("Logged to yesterday").
 
 ### 13.3 Repeat meals

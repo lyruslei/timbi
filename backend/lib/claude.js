@@ -22,7 +22,8 @@ Corrections (edits)
 - Only use ids from the context. Never add a new food to fix an old one.
 
 Another day (log_day)
-- "yesterday I had…" or a named date: set log_day to that date (YYYY-MM-DD). Otherwise log_day is null (the viewed day). Never a future date.
+- "yesterday I had…" or a named date: set log_day to that date (YYYY-MM-DD). Otherwise log_day is null (the viewed day). Only today back to 60 days ago is allowed; for a future or older date, log nothing and say so.
+- To move a food to another day ("the pancakes were today, not yesterday"): copy it (copies) with log_day set to the new day, and remove the original (edits, remove true).
 
 Repeats (copies)
 - "same breakfast as yesterday", "the same lunch again": put the ids of those foods from the context in copies (use the logged times to tell meals apart: breakfast before about 11:00, lunch about 11:00–15:00, dinner after about 17:00). Do not re-estimate them.

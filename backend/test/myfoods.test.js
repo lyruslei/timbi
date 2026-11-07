@@ -40,6 +40,15 @@ test('"2 blitz bars" matches both blitz bars', () =>
 test('"vanilla blitz" ranks vanilla first', () => assert.equal(matchMyFoods('vanilla blitz', foods)[0].id, 1));
 test('"rice" matches Rice crackers (the AI decides)', () => assert.deepEqual(matchMyFoods('rice and chicken', foods).map((f) => f.id), [4]));
 test('words under 3 letters are ignored', () => assert.deepEqual(matchMyFoods('an egg', foods), []));
+test('no loose prefix matches: egg ≠ eggplant, had ≠ haddock, the ≠ thermos', () => {
+  const list = [{ id: 1, name: 'Eggplant parmesan' }, { id: 2, name: 'Haddock fillet' }, { id: 3, name: 'Thermos coffee' }, { id: 4, name: 'Without sugar cookies' }];
+  assert.deepEqual(matchMyFoods('I had 2 eggs with the toast', list), []);
+});
+test('plurals still match: bars ~ bar, eggs ~ egg', () => {
+  const list = [{ id: 1, name: 'Egg sandwich' }, { id: 2, name: 'Blitz bar' }];
+  assert.deepEqual(matchMyFoods('2 eggs', list).map((f) => f.id), [1]);
+  assert.deepEqual(matchMyFoods('blitz bars', list).map((f) => f.id), [2]);
+});
 test('"log my usual breakfast" matches the saved meal', () => assert.equal(matchMyFoods('log my usual breakfast', foods)[0].id, 5));
 test('case-insensitive', () => assert.equal(matchMyFoods('PROMATRIX7 scoop', foods)[0].id, 3));
 test('never more than max', () => {

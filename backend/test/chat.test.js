@@ -28,10 +28,12 @@ function fakeStore() {
     async listMyFoods() { return this.myFoods; },
     async logTurnV2({ logDay, msgDay, items, copyIds, removeIds, updates, goals, messages }) {
       this.turns += 1;
+      // Same order as log_turn_v2: copies, then removes, updates, new items.
+      const sources = copyIds.map((id) => this.entries.find((e) => e.id === id)).filter(Boolean).map(({ id: _, day: __, ...rest }) => rest);
+      for (const rest of sources) this.add(logDay, rest);
       this.entries = this.entries.filter((e) => !removeIds.includes(e.id));
       for (const u of updates) Object.assign(this.entries.find((e) => e.id === u.id), u);
       for (const it of items) this.add(logDay, it);
-      for (const id of copyIds) { const { id: _, day: __, ...rest } = this.entries.find((e) => e.id === id); this.add(logDay, rest); }
       if (goals) this.goals = { ...goals };
       this.messages[msgDay] = [...(this.messages[msgDay] ?? []), ...messages];
     },
@@ -222,4 +224,34 @@ test('photo the AI service rejects → says the photo could not be read; nothing
   assert.equal(r.failed, true);
   assert.match(r.reply, /couldn't read that photo/i);
   assert.equal(store.turns, 0);
+});
+
+// ---- review fixes ----
+test('move by chat (copy + remove the same food) keeps the food', async () => {
+  const store = fakeStore();
+  const pancakes = store.add(YDAY, { food: 'Pancakes', qty: 1, kcal: 350, protein: 8, carbs: 50, fat: 12, ...NULLS });
+  const r = await chat({ text: 'the pancakes were today, not yesterday' }, store,
+    aiSays({ copies: [pancakes.id], edits: [{ id: pancakes.id, remove: true }], reply: 'Moved the pancakes to today.' }));
+  assert.deepEqual(store.on(DAY).map((e) => [e.food, e.kcal]), [['Pancakes', 350]]);
+  assert.equal(store.on(YDAY).length, 0);
+  assert.equal(r.reply, 'Moved the pancakes to today. (1,850 kcal left)');
+});
+
+test('a date the AI names but we refuse → turn fails with a clear reply, nothing written', async (t) => {
+  t.mock.method(console, 'error', () => {});
+  for (const log_day of ['2026-08-01', '2026-11-09', 'last tuesday']) {
+    const store = fakeStore();
+    const r = await chat({ text: 'on aug 1 I had lechon' }, store, aiSays({ items: [egg], log_day }));
+    assert.equal(r.failed, true, log_day);
+    assert.match(r.reply, /60 days/);
+    assert.equal(store.turns, 0);
+  }
+});
+
+test('editing only yesterday\'s food adds no calories note for today', async () => {
+  const store = fakeStore();
+  const rice = store.add(YDAY, { food: 'Rice', qty: 1, kcal: 200, protein: 4, carbs: 44, fat: 0.4, ...NULLS });
+  const r = await chat({ text: "yesterday's rice was 300g" }, store,
+    aiSays({ edits: [{ id: rice.id, remove: false, item: { food: 'Rice, 300g', qty: 1, kcal: 390, protein: 8, carbs: 86, fat: 0.8 } }], reply: 'Updated yesterday\'s rice.' }));
+  assert.equal(r.reply, "Updated yesterday's rice.");
 });

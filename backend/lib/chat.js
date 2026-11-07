@@ -9,6 +9,7 @@ import { addDays } from './days.js';
 import { HttpError } from './http.js';
 
 export const FAIL_REPLY = "Couldn't log that — try again.";
+export const DAY_REFUSED_REPLY = 'I can only log food from today back to 60 days ago.';
 export const PHOTO_FAIL_REPLY = "Couldn't read that photo. Try a clearer, closer shot.";
 export const GOALS_REJECTED_NOTE = "I didn't change your goals: calories must be 500–10,000 and each macro 0–1,000g.";
 const MAX_TEXT = 1000;
@@ -19,6 +20,8 @@ const fmt = (n) => Math.round(n).toLocaleString('en-US');
 // The viewed day's foods as they will be after this turn is saved.
 function dayAfterTurn(day, viewed, previous, turn, newItems) {
   const rows = new Map([...viewed, ...previous].map((e) => [e.id, { ...e, day: viewed.includes(e) ? day : null }]));
+  // Copies are made before edits (same order as log_turn_v2), so "move" = copy + remove works.
+  const copied = turn.copies.map((id) => rows.get(id)).filter(Boolean);
   for (const e of turn.edits) {
     if (e.remove) rows.delete(e.id);
     else if (rows.has(e.id)) rows.set(e.id, { ...rows.get(e.id), ...e.item });
@@ -26,7 +29,7 @@ function dayAfterTurn(day, viewed, previous, turn, newItems) {
   const after = [...rows.values()].filter((e) => e.day === day);
   if (turn.logDay === day) {
     after.push(...newItems);
-    for (const id of turn.copies) { const src = rows.get(id); if (src) after.push(src); }
+    after.push(...copied);
   }
   return after;
 }
@@ -70,14 +73,16 @@ export async function handleChat({ text, day, today, image = null, tz = 0 } = {}
   } catch (err) {
     console.error('chat failed:', err?.message ?? err, raw === undefined ? '' : JSON.stringify(raw).slice(0, 1500));
     // The AI service refusing the image itself (corrupt, too small) isn't worth a blind retry.
-    const reply = image && err?.status === 400 ? PHOTO_FAIL_REPLY : FAIL_REPLY;
+    const reply = err?.name === 'DayRefused' ? DAY_REFUSED_REPLY : image && err?.status === 400 ? PHOTO_FAIL_REPLY : FAIL_REPLY;
     return { reply, totals, goals, failed: true, logDay: day, saveOffer: null };
   }
 
   const newItems = [...turn.items, ...expandSaved(turn.saved, myFoods)];
   let reply = turn.goalsRejected ? `${turn.reply} ${GOALS_REJECTED_NOTE}` : turn.reply;
   // The AI's arithmetic isn't reliable, so the exact calories left come from the data.
-  const changedViewedDay = turn.edits.length > 0 || (turn.logDay === day && (newItems.length > 0 || turn.copies.length > 0));
+  const viewedIds = new Set(viewed.map((e) => e.id));
+  const changedViewedDay = turn.edits.some((e) => viewedIds.has(e.id))
+    || (turn.logDay === day && (newItems.length > 0 || turn.copies.length > 0));
   if (changedViewedDay) {
     const goalKcal = (turn.goals ?? goals).kcal;
     const eaten = sumTotals(dayAfterTurn(day, viewed, previous, turn, newItems)).kcal;

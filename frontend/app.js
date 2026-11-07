@@ -356,11 +356,18 @@ $('chat-form').addEventListener('submit', async (e) => {
         body: { text, day, today: today(), tz: new Date().getTimezoneOffset(), image },
       });
       pending.remove();
-      if (day !== selectedDay) { input.value = ''; clearPhoto(); refreshStreak(); return; } // saved; user moved to another day
       if (data.failed) {
         // Nothing was saved: drop the bubble and leave the text (and photo) to resend.
         mine.remove();
         addMessage('bot', `${data.reply} Your message is still in the box.`, 'failed');
+        return;
+      }
+      if (day !== selectedDay) {
+        // Saved, but the user is now looking at another day: keep the save offer, skip that day's charts.
+        input.value = '';
+        clearPhoto();
+        refreshStreak();
+        if (data.saveOffer) showSaveOffer(data.saveOffer);
         return;
       }
       addMessage('bot', data.reply);

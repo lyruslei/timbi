@@ -145,6 +145,15 @@ security invoker
 set search_path = public
 as $$
 begin
+  -- Copies first, so "move" (copy + remove the same food) never loses it.
+  if p_copy_ids is not null and cardinality(p_copy_ids) > 0 then
+    insert into entries (day, food, qty, kcal, protein, carbs, fat,
+                         fiber, sugar, sat_fat, sodium, cholesterol, potassium)
+    select p_log_day, food, qty, kcal, protein, carbs, fat,
+           fiber, sugar, sat_fat, sodium, cholesterol, potassium
+    from entries where id = any(p_copy_ids) order by id;
+  end if;
+
   if p_remove_ids is not null and cardinality(p_remove_ids) > 0 then
     delete from entries where id = any(p_remove_ids);
   end if;
@@ -165,13 +174,6 @@ begin
          (i->>'sodium')::real, (i->>'cholesterol')::real, (i->>'potassium')::real
   from jsonb_array_elements(coalesce(p_items, '[]'::jsonb)) as i;
 
-  if p_copy_ids is not null and cardinality(p_copy_ids) > 0 then
-    insert into entries (day, food, qty, kcal, protein, carbs, fat,
-                         fiber, sugar, sat_fat, sodium, cholesterol, potassium)
-    select p_log_day, food, qty, kcal, protein, carbs, fat,
-           fiber, sugar, sat_fat, sodium, cholesterol, potassium
-    from entries where id = any(p_copy_ids) order by id;
-  end if;
 
   if p_goals is not null and p_goals <> 'null'::jsonb then
     update goals set kcal = (p_goals->>'kcal')::real, protein = (p_goals->>'protein')::real,

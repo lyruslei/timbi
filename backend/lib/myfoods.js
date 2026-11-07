@@ -14,8 +14,11 @@ export function validateMyFood(f) {
   return { ok: true, food: { name, serving, ...numbers } };
 }
 
-const words = (s) => s.toLowerCase().match(/[a-z0-9]+/g)?.filter((w) => w.length >= 3) ?? [];
-const same = (a, b) => a === b || a.startsWith(b) || b.startsWith(a); // "bars" ~ "bar"
+// Everyday words that would match unrelated saved foods.
+const STOP = new Set(['the', 'and', 'with', 'had', 'have', 'for', 'ate', 'some', 'just', 'also', 'one', 'two', 'three', 'today', 'yesterday', 'this', 'that', 'was', 'were', 'not']);
+const words = (s) => s.toLowerCase().match(/[a-z0-9]+/g)?.filter((w) => w.length >= 3 && !STOP.has(w)) ?? [];
+// Same word, or a simple plural ("bars" ~ "bar", "boxes" ~ "box"). No loose prefixes ("egg" ≠ "eggplant").
+const same = (a, b) => a === b || a === `${b}s` || b === `${a}s` || a === `${b}es` || b === `${a}es`;
 
 // Saved foods whose name shares a word (3+ letters) with the message, best first.
 export function matchMyFoods(text, foods, max = 10) {

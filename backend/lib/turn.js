@@ -6,6 +6,11 @@ import { validateMyFood } from './myfoods.js';
 import { addDays } from './days.js';
 
 const MAX_DAYS_BACK = 60;
+
+// The AI named a day we won't log to (future, too old, or not a date).
+export class DayRefused extends Error {
+  constructor(day) { super(`refused log_day ${day}`); this.name = 'DayRefused'; }
+}
 const MAX_SERVINGS = 50;
 const isNum = (n) => typeof n === 'number' && Number.isFinite(n);
 
@@ -39,7 +44,11 @@ export function validateTurn(raw, { allowedEntryIds, allowedFoodIds, day, today 
   }))];
 
   const oldest = addDays(today, -MAX_DAYS_BACK);
-  const logDay = isValidDay(raw.log_day) && raw.log_day <= today && raw.log_day >= oldest ? raw.log_day : day;
+  let logDay = day;
+  if (raw.log_day != null) {
+    if (!(isValidDay(raw.log_day) && raw.log_day <= today && raw.log_day >= oldest)) throw new DayRefused(raw.log_day);
+    logDay = raw.log_day;
+  }
 
   // A misread label must not cost the user their logged food: just don't offer to save it.
   let label = null;

@@ -38,12 +38,13 @@ test('copy of an id not sent → throws', () => assert.throws(() => run({ copies
 
 // log day
 test('yesterday is allowed', () => assert.equal(run({ log_day: '2026-11-07' }).logDay, '2026-11-07'));
-test('tomorrow falls back to the viewed day', () => assert.equal(run({ log_day: '2026-11-09' }).logDay, '2026-11-08'));
-test('61 days back falls back; 60 is fine', () => {
-  assert.equal(run({ log_day: '2026-09-08' }).logDay, '2026-11-08');
+test('no log day → the viewed day', () => assert.equal(run({ log_day: null }).logDay, '2026-11-08'));
+test('tomorrow is refused with a DayRefused error', () => assert.throws(() => run({ log_day: '2026-11-09' }), { name: 'DayRefused' }));
+test('61 days back refused; 60 is fine', () => {
+  assert.throws(() => run({ log_day: '2026-09-08' }), { name: 'DayRefused' });
   assert.equal(run({ log_day: '2026-09-09' }).logDay, '2026-09-09');
 });
-test('garbage log day falls back', () => assert.equal(run({ log_day: 'yesterday' }).logDay, '2026-11-08'));
+test('garbage log day refused', () => assert.throws(() => run({ log_day: 'yesterday' }), { name: 'DayRefused' }));
 
 // label
 const label = { name: 'Blitz bar vanilla', serving: '1 bar', kcal: 210, protein: 20, carbs: 6, fat: 7, fiber: 2, sugar: 1, sat_fat: 2, sodium: 150, cholesterol: 5, potassium: 150 };
