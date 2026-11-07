@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Bitelog</title>
+  <meta name="description" content="Log what you eat by chatting. Calories and macros at a glance.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+  <script type="module" src="app.js"></script>
+</head>
+<body>
+  <!-- Login -->
+  <main id="login-view" class="login" hidden>
+    <h1 class="wordmark">Bitelog</h1>
+    <p class="muted">Enter your password to open your food log.</p>
+    <form id="login-form" class="login-form">
+      <label for="password" class="sr-only">Password</label>
+      <input id="password" type="password" autocomplete="current-password" placeholder="Password" required>
+      <button type="submit">Log in</button>
+      <p id="login-error" class="error" role="alert" hidden></p>
+    </form>
+  </main>
+
+  <!-- App -->
+  <div id="app-view" class="app" hidden>
+    <header class="top">
+      <h1 class="wordmark small">Bitelog</h1>
+      <span id="today-label" class="muted"></span>
+      <button id="goals-button" class="icon-button" aria-label="Edit daily goals" title="Edit daily goals">
+        <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path fill="currentColor" d="M19.4 13a7.5 7.5 0 0 0 0-2l2-1.6-2-3.4-2.4 1a7.6 7.6 0 0 0-1.7-1L15 3.5h-4l-.4 2.5a7.6 7.6 0 0 0-1.7 1l-2.4-1-2 3.4L6.6 11a7.5 7.5 0 0 0 0 2l-2 1.6 2 3.4 2.4-1c.5.4 1.1.7 1.7 1l.4 2.5h4l.4-2.5c.6-.3 1.2-.6 1.7-1l2.4 1 2-3.4zM13 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7z" transform="translate(-1 0)"/></svg>
+      </button>
+    </header>
+
+    <section class="charts" aria-label="Today's totals">
+      <figure class="chart kcal">
+        <div class="chart-box">
+          <canvas id="kcal-chart" aria-hidden="true"></canvas>
+          <div class="ring-center">
+            <span id="kcal-eaten" class="big">0</span>
+            <span id="kcal-goal" class="muted">of 2,200 kcal</span>
+          </div>
+        </div>
+        <figcaption id="kcal-left">2,200 kcal left</figcaption>
+      </figure>
+
+      <figure class="chart macros">
+        <div class="chart-box">
+          <canvas id="macro-chart" aria-hidden="true"></canvas>
+        </div>
+        <figcaption>
+          <ul class="legend">
+            <li><span class="dot protein"></span>Protein <b id="p-pct">0%</b> <span id="p-g" class="muted">0g</span></li>
+            <li><span class="dot carbs"></span>Carbs <b id="c-pct">0%</b> <span id="c-g" class="muted">0g</span></li>
+            <li><span class="dot fat"></span>Fat <b id="f-pct">0%</b> <span id="f-g" class="muted">0g</span></li>
+          </ul>
+        </figcaption>
+      </figure>
+    </section>
+
+    <section id="chat-log" class="chat-log" aria-live="polite" aria-label="Chat"></section>
+
+    <form id="chat-form" class="composer">
+      <label for="chat-input" class="sr-only">What did you eat?</label>
+      <input id="chat-input" type="text" autocomplete="off" maxlength="1000" placeholder="What did you eat?" required>
+      <button id="send-button" type="submit">Send</button>
+    </form>
+  </div>
+
+  <!-- Goals -->
+  <dialog id="goals-dialog" class="goals">
+    <form id="goals-form" method="dialog">
+      <h2>Daily goals</h2>
+      <label>Calories <span class="unit">kcal</span><input name="kcal" type="number" min="500" max="10000" step="1" required></label>
+      <label>Protein <span class="unit">g</span><input name="protein" type="number" min="0" max="1000" step="1" required></label>
+      <label>Carbs <span class="unit">g</span><input name="carbs" type="number" min="0" max="1000" step="1" required></label>
+      <label>Fat <span class="unit">g</span><input name="fat" type="number" min="0" max="1000" step="1" required></label>
+      <p id="goals-error" class="error" role="alert" hidden></p>
+      <div class="dialog-actions">
+        <button type="button" id="goals-cancel" class="ghost">Cancel</button>
+        <button type="submit" id="goals-save">Save goals</button>
+      </div>
+    </form>
+  </dialog>
+</body>
+</html>
