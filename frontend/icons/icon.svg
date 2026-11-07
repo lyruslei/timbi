@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <rect width="512" height="512" fill="#221A2B"/>
+  <rect width="512" height="512" fill="#000000"/>
   <mask id="bite">
     <rect width="512" height="512" fill="#fff"/>
     <circle cx="372" cy="150" r="52" fill="#000"/>
@@ -7,7 +7,7 @@
     <circle cx="322" cy="112" r="40" fill="#000"/>
   </mask>
   <g mask="url(#bite)">
-    <circle cx="256" cy="268" r="150" fill="#F3EDE4"/>
-    <circle cx="256" cy="268" r="104" fill="none" stroke="#E8C26A" stroke-width="14"/>
+    <circle cx="256" cy="268" r="150" fill="#B4F82A"/>
+    <circle cx="256" cy="268" r="104" fill="none" stroke="#000000" stroke-width="14"/>
   </g>
 </svg>
