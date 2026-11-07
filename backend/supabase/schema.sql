@@ -188,3 +188,17 @@ $$;
 
 revoke execute on function log_turn_v2(date, date, jsonb, bigint[], bigint[], jsonb, jsonb, jsonb) from public, anon, authenticated;
 grant execute on function log_turn_v2(date, date, jsonb, bigint[], bigint[], jsonb, jsonb, jsonb) to service_role;
+
+-- One row per day that has food (for the streak), so long histories never hit
+-- the API's row limit.
+create or replace function logged_days(p_from date, p_to date)
+returns setof date
+language sql
+stable
+security invoker
+set search_path = public
+as $$
+  select distinct day from entries where day between p_from and p_to order by day desc;
+$$;
+revoke execute on function logged_days(date, date) from public, anon, authenticated;
+grant execute on function logged_days(date, date) to service_role;

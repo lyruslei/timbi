@@ -29,6 +29,10 @@ export function createStore(supabase) {
     async removeEntries(ids) {
       return must(await supabase.from('entries').delete().in('id', ids).select('id')).length;
     },
+    async getLoggedDays(fromDay, toDay) {
+      const rows = must(await supabase.rpc('logged_days', { p_from: fromDay, p_to: toDay }));
+      return rows.map((r) => (typeof r === 'string' ? r : r.logged_days));
+    },
     async getMessages(day) {
       return must(await supabase.from('messages').select('role, text').eq('day', day).order('created_at').order('id'));
     },
