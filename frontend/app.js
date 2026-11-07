@@ -232,8 +232,13 @@ function addMessage(role, text, extra = '') {
   el.className = `msg ${role} ${extra}`.trim();
   el.textContent = text;
   log.append(el);
-  log.scrollTop = log.scrollHeight;
+  scrollToLatest();
   return el;
+}
+
+// The page itself scrolls; jump to the newest message.
+function scrollToLatest() {
+  window.scrollTo({ top: document.documentElement.scrollHeight });
 }
 
 function showEmptyChat() {
