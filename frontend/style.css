@@ -64,6 +64,8 @@ input {
 input::placeholder { color: var(--gray); }
 
 :focus-visible { outline: 2px solid var(--lime); outline-offset: 2px; }
+/* Text boxes: the typing caret is enough, no green ring. Buttons keep theirs for keyboard use. */
+input:focus, input:focus-visible { outline: none; }
 
 .title {
   font-size: 2.1rem;
