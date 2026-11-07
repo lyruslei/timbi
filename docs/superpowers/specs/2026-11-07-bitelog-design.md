@@ -176,3 +176,62 @@ future days) and *Remove* (with confirmation). A select mode moves or removes
 several at once. Chat history is not changed; only entries and totals are.
 Backend: `PATCH /api/entries {ids, day}` and `DELETE /api/entries {ids}`,
 at most 100 ids, positive integers only.
+
+## 13. Addendum (2026-11-08): smarter chat, My foods, photos, streak
+
+Decided with the user on 2026-11-08. Model stays Claude Haiku 5.5. Estimated
+cost with everything: about $0.0004–0.0009 per message (photos at the top of
+that range): roughly 0.9–1.3¢/day at 15 messages, 0.2–0.4¢/day at 4.
+
+### 13.1 Corrections by chat
+"actually it was 3 eggs", "remove the coke", "the rice was 200g". The AI sees
+the viewed day's foods (with ids) and the previous day's, and returns edits
+(remove, or replace a food's numbers) for those ids only. Edits outside the
+sent list are refused. Edits, new foods, goal changes and the chat messages are
+saved in one transaction.
+
+### 13.2 Past days in plain words
+"yesterday I had pancit" logs to yesterday. The AI returns a log day; the
+backend accepts it only if it is not after the client's today and at most 60
+days back, otherwise it uses the viewed day. Chat messages stay on the day the
+user was viewing; the reply says where the food went ("Logged to yesterday").
+
+### 13.3 Repeat meals
+"same breakfast as yesterday": the AI picks entry ids from the previous day's
+foods (sent with the local time each was logged); the backend copies those rows
+exactly, so the numbers are identical and not re-estimated.
+"my usual breakfast": the user can say "save this as my usual breakfast" to
+store the day's chosen foods as one My foods item; afterwards it is logged like
+any saved food.
+
+### 13.4 My foods
+A `my_foods` table holds the user's saved foods: name, serving description, and
+per-serving kcal, protein, carbs, fat and the six nutrients. When a message
+mentions a saved food, the AI returns only which saved food and how many
+servings; the backend multiplies the stored numbers, so the same food always
+logs the same numbers. Only saved foods whose names match words in the message
+are sent to the AI (at most 10). Two plausible matches → the AI asks which one.
+No "(saved)" tag is shown. A My foods screen (from the ⚙ menu) lists saved foods
+with edit (all numbers and the name) and delete.
+
+### 13.5 Photos and nutrition labels
+A 📷 button next to the message box takes or picks a photo, with optional text.
+The phone shrinks it to at most 1,024 px on the long side (JPEG) before
+sending; the backend accepts JPEG/PNG/WebP up to 1.5 MB. Photos are sent to the
+AI once and never stored.
+- Label photo: numbers are read exactly as printed (per serving) and the food
+  is logged. timbi then asks "Save to My foods for next time?" with Save /
+  Don't save buttons. Nothing is saved unless the user taps Save.
+- Plate photo: an estimate, like a typed description.
+- Unreadable photo: nothing is logged; the reply says so.
+
+### 13.6 Weekly check-ins
+"how did I do this week?" — when the message is about the week, the backend
+adds the last 7 days' daily totals and goals to that one request; the reply
+gives averages, best/worst days and protein streaks. Other messages do not
+carry this data.
+
+### 13.7 Streak
+🔥 N to the right of the timbi wordmark: N = consecutive days with at least one
+food, ending today, or yesterday if today has nothing yet. Hidden when 0.
+Counted from the database (no AI cost); logging on a past day counts.
