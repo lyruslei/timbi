@@ -20,8 +20,10 @@ A personal food tracker you use by chatting. Type what you ate ("2 eggs and a sl
 
 ## Run locally
 
+Put your settings in `backend/.env.local` (git-ignored), then start both halves:
+
 ```bash
-cd backend && npm install && npx vercel dev --listen 3001
+cd backend && npm install && npm run dev
 ```
 
 ```bash
