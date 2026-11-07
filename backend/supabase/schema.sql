@@ -116,3 +116,75 @@ grant execute on function log_turn(date, jsonb, jsonb, jsonb) to service_role;
 
 -- The backend may now remove foods (moving uses the existing update grant).
 grant delete on entries to service_role;
+
+-- ---------------------------------------------------------------------------
+-- 2026-11-08: My foods (saved foods with exact numbers) and log_turn_v2
+-- (corrections, copies, logging to another day) in one transaction.
+create table if not exists my_foods (
+  id bigint generated always as identity primary key,
+  name text not null,
+  serving text not null default '1 serving',
+  kcal real not null,
+  protein real not null,
+  carbs real not null,
+  fat real not null,
+  fiber real, sugar real, sat_fat real, sodium real, cholesterol real, potassium real,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+create unique index if not exists my_foods_name on my_foods (lower(name));
+alter table my_foods enable row level security;
+grant select, insert, update, delete on my_foods to service_role;
+
+create or replace function log_turn_v2(
+  p_log_day date, p_msg_day date, p_items jsonb, p_copy_ids bigint[],
+  p_remove_ids bigint[], p_updates jsonb, p_goals jsonb, p_messages jsonb)
+returns void
+language plpgsql
+security invoker
+set search_path = public
+as $$
+begin
+  if p_remove_ids is not null and cardinality(p_remove_ids) > 0 then
+    delete from entries where id = any(p_remove_ids);
+  end if;
+
+  update entries e set
+    food = u->>'food', qty = (u->>'qty')::real, kcal = (u->>'kcal')::real,
+    protein = (u->>'protein')::real, carbs = (u->>'carbs')::real, fat = (u->>'fat')::real,
+    fiber = (u->>'fiber')::real, sugar = (u->>'sugar')::real, sat_fat = (u->>'sat_fat')::real,
+    sodium = (u->>'sodium')::real, cholesterol = (u->>'cholesterol')::real, potassium = (u->>'potassium')::real
+  from jsonb_array_elements(coalesce(p_updates, '[]'::jsonb)) as u
+  where e.id = (u->>'id')::bigint;
+
+  insert into entries (day, food, qty, kcal, protein, carbs, fat,
+                       fiber, sugar, sat_fat, sodium, cholesterol, potassium)
+  select p_log_day, i->>'food', (i->>'qty')::real, (i->>'kcal')::real,
+         (i->>'protein')::real, (i->>'carbs')::real, (i->>'fat')::real,
+         (i->>'fiber')::real, (i->>'sugar')::real, (i->>'sat_fat')::real,
+         (i->>'sodium')::real, (i->>'cholesterol')::real, (i->>'potassium')::real
+  from jsonb_array_elements(coalesce(p_items, '[]'::jsonb)) as i;
+
+  if p_copy_ids is not null and cardinality(p_copy_ids) > 0 then
+    insert into entries (day, food, qty, kcal, protein, carbs, fat,
+                         fiber, sugar, sat_fat, sodium, cholesterol, potassium)
+    select p_log_day, food, qty, kcal, protein, carbs, fat,
+           fiber, sugar, sat_fat, sodium, cholesterol, potassium
+    from entries where id = any(p_copy_ids) order by id;
+  end if;
+
+  if p_goals is not null and p_goals <> 'null'::jsonb then
+    update goals set kcal = (p_goals->>'kcal')::real, protein = (p_goals->>'protein')::real,
+                     carbs = (p_goals->>'carbs')::real, fat = (p_goals->>'fat')::real
+    where id = 1;
+  end if;
+
+  insert into messages (day, role, text)
+  select p_msg_day, m->>'role', m->>'text'
+  from jsonb_array_elements(p_messages) with ordinality as t(m, n)
+  order by n;
+end;
+$$;
+
+revoke execute on function log_turn_v2(date, date, jsonb, bigint[], bigint[], jsonb, jsonb, jsonb) from public, anon, authenticated;
+grant execute on function log_turn_v2(date, date, jsonb, bigint[], bigint[], jsonb, jsonb, jsonb) to service_role;
