@@ -99,7 +99,7 @@ function renderTotals(totals, newGoals) {
     mds.backgroundColor = [css('--card-raised')];
   } else {
     mds.data = [split.grams.protein, split.grams.carbs, split.grams.fat];
-    mds.backgroundColor = [css('--lime'), css('--white'), css('--gray')];
+    mds.backgroundColor = [css('--lime'), css('--lime-dark'), css('--lime-pale')];
   }
   macroChart.update();
   for (const [k, p] of [['protein', 'p'], ['carbs', 'c'], ['fat', 'f']]) {

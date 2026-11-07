@@ -4,6 +4,8 @@
   --card: #1C1C1E;
   --card-raised: #2C2C2E;
   --lime: #B4F82A;
+  --lime-pale: #E4FBB8;
+  --lime-dark: #5E8C12;
   --deep-green: #1E2A0E;
   --white: #FFFFFF;
   --gray: #8E8E93;
@@ -195,8 +197,8 @@ input::placeholder { color: var(--gray); }
 .legend b { font-weight: 700; font-variant-numeric: tabular-nums; }
 .dot { width: 0.65rem; height: 0.65rem; border-radius: 50%; flex: none; }
 .dot.protein { background: var(--lime); }
-.dot.carbs { background: var(--white); }
-.dot.fat { background: var(--gray); }
+.dot.carbs { background: var(--lime-dark); }
+.dot.fat { background: var(--lime-pale); }
 
 /* Chat */
 .chat-log {
