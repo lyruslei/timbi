@@ -34,6 +34,7 @@
   <div id="app-view" class="app" hidden>
     <header class="top">
       <h1 class="wordmark" aria-label="timbi">t<span class="i">ı</span>mb<span class="i">ı</span></h1>
+      <span id="streak" class="streak" hidden><span aria-hidden="true">🔥</span><b id="streak-n">0</b></span>
       <button id="goals-button" class="icon-button" aria-label="Edit daily goals" title="Edit daily goals">
         <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path fill="currentColor" d="M19.4 13a7.5 7.5 0 0 0 0-2l2-1.6-2-3.4-2.4 1a7.6 7.6 0 0 0-1.7-1L15 3.5h-4l-.4 2.5a7.6 7.6 0 0 0-1.7 1l-2.4-1-2 3.4L6.6 11a7.5 7.5 0 0 0 0 2l-2 1.6 2 3.4 2.4-1c.5.4 1.1.7 1.7 1l.4 2.5h4l.4-2.5c.6-.3 1.2-.6 1.7-1l2.4 1 2-3.4zM13 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7z" transform="translate(-1 0)"/></svg>
       </button>
@@ -78,9 +79,18 @@
 
     <section id="chat-log" class="chat-log" aria-live="polite" aria-label="Chat"></section>
 
+    <div id="photo-chip" class="photo-chip" hidden>
+      <img id="photo-thumb" alt="">
+      <span>Photo attached</span>
+      <button id="photo-clear" type="button" class="icon-button" aria-label="Remove photo">✕</button>
+    </div>
     <form id="chat-form" class="composer">
+      <button id="photo-button" type="button" class="photo-button" aria-label="Add a photo of food or a nutrition label" title="Add a photo">
+        <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path fill="currentColor" d="M9 4 7.2 6H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-3.2L15 4H9zm3 4.5a4.5 4.5 0 1 1 0 9 4.5 4.5 0 0 1 0-9zm0 2a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5z"/></svg>
+      </button>
+      <input id="photo-input" type="file" accept="image/*" hidden>
       <label for="chat-input" class="sr-only">What did you eat?</label>
-      <input id="chat-input" type="text" autocomplete="off" maxlength="1000" placeholder="What did you eat?" required>
+      <input id="chat-input" type="text" autocomplete="off" maxlength="1000" placeholder="What did you eat?">
       <button id="send-button" type="submit" class="primary">Send</button>
     </form>
   </div>

@@ -2,6 +2,7 @@ import { api, getToken, setToken } from './lib/api.js';
 import { localDay, ringData, macroSplit } from './lib/format.js';
 import { addDays, dayLabel, isFuture, monthGrid, monthTitle } from './lib/days.js';
 import { nutrientRows, macroRows } from './lib/nutrition.js';
+import { shrinkImage } from './lib/image.js';
 
 const $ = (id) => document.getElementById(id);
 const css = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
@@ -27,6 +28,7 @@ async function showApp() {
   $('login-view').hidden = true;
   $('app-view').hidden = false;
   initCharts();
+  refreshStreak();
   await selectDay(today());
   $('chat-input').focus();
 }
@@ -252,12 +254,90 @@ function showEmptyChat() {
   $('chat-log').append(p);
 }
 
+// ---------- Photo ----------
+
+let pendingPhoto = null; // { media_type, data } after shrinking
+
+function clearPhoto() {
+  pendingPhoto = null;
+  $('photo-chip').hidden = true;
+  $('photo-thumb').removeAttribute('src');
+  $('photo-input').value = '';
+}
+
+$('photo-button').addEventListener('click', () => $('photo-input').click());
+$('photo-clear').addEventListener('click', clearPhoto);
+$('photo-input').addEventListener('change', async () => {
+  const file = $('photo-input').files?.[0];
+  if (!file) return;
+  try {
+    pendingPhoto = await shrinkImage(file);
+    $('photo-thumb').src = `data:${pendingPhoto.media_type};base64,${pendingPhoto.data}`;
+    $('photo-chip').hidden = false;
+    $('chat-input').placeholder = 'Add a note (optional), e.g. "this is blitz bar"';
+    $('chat-input').focus();
+  } catch {
+    clearPhoto();
+    addMessage('bot', "Couldn't open that photo. Try another one.", 'failed');
+  }
+});
+
+// ---------- Streak ----------
+
+async function refreshStreak() {
+  try {
+    const { streak } = await api(`/api/streak?today=${today()}`);
+    $('streak').hidden = !(streak > 0);
+    $('streak-n').textContent = String(streak);
+    $('streak').setAttribute('aria-label', `${streak} day streak`);
+  } catch { /* the streak is a nicety; never block the app on it */ }
+}
+
+// ---------- Save to My foods ----------
+
+function showSaveOffer(offer) {
+  const box = document.createElement('div');
+  box.className = 'msg bot offer';
+  const q = document.createElement('p');
+  q.style.margin = '0';
+  q.textContent = `Save ${offer.name} (${offer.serving}: ${fmt(offer.kcal)} kcal, ${fmt(offer.protein)}g protein) to My foods for next time?`;
+  const actions = document.createElement('div');
+  actions.className = 'offer-actions';
+  const save = document.createElement('button');
+  save.type = 'button';
+  save.className = 'pill primary';
+  save.textContent = 'Save';
+  const skip = document.createElement('button');
+  skip.type = 'button';
+  skip.className = 'pill';
+  skip.textContent = "Don't save";
+  actions.append(save, skip);
+  box.append(q, actions);
+  $('chat-log').append(box);
+  scrollToLatest();
+
+  const done = (text) => { box.replaceChildren(Object.assign(document.createElement('p'), { textContent: text, style: 'margin:0' })); };
+  skip.addEventListener('click', () => box.remove());
+  save.addEventListener('click', async () => {
+    save.disabled = skip.disabled = true;
+    try {
+      await api('/api/my-foods', { method: 'POST', body: { food: offer } });
+      done(`Saved ${offer.name} to My foods. Next time just type its name.`);
+    } catch (ex) {
+      if (ex.status === 409) done(`You already have a food called ${offer.name} in My foods.`);
+      else if (ex.status !== 401) { save.disabled = skip.disabled = false; q.textContent = "Couldn't save that. Try again?"; }
+    }
+  });
+}
+
+// ---------- Send ----------
+
 $('chat-form').addEventListener('submit', async (e) => {
   e.preventDefault();
   const input = $('chat-input');
   const send = $('send-button');
   const text = input.value.trim();
-  if (!text || sending) return;
+  if ((!text && !pendingPhoto) || sending) return;
   sending = true;
   send.disabled = true;
 
@@ -265,26 +345,36 @@ $('chat-form').addEventListener('submit', async (e) => {
     // On "Today" and midnight passed while the app was open: move to the new day first.
     if (followToday && selectedDay !== today()) await selectDay(today());
     const day = selectedDay;
+    const image = pendingPhoto;
 
-    const mine = addMessage('user', text);
-    const pending = addMessage('bot', 'Logging…', 'pending');
+    const mine = addMessage('user', image ? (text ? `${text} 📷` : '📷') : text);
+    const pending = addMessage('bot', image ? 'Reading your photo…' : 'Logging…', 'pending');
     try {
-      const data = await api('/api/chat', { method: 'POST', body: { text, day } });
+      const data = await api('/api/chat', {
+        method: 'POST',
+        body: { text, day, today: today(), tz: new Date().getTimezoneOffset(), image },
+      });
       pending.remove();
-      if (day !== selectedDay) { input.value = ''; return; } // saved; user is now looking at another day
+      if (day !== selectedDay) { input.value = ''; clearPhoto(); refreshStreak(); return; } // saved; user moved to another day
       if (data.failed) {
-        // Nothing was saved: drop the bubble and leave the text in the box to resend.
+        // Nothing was saved: drop the bubble and leave the text (and photo) to resend.
         mine.remove();
         addMessage('bot', `${data.reply} Your message is still in the box.`, 'failed');
         return;
       }
       addMessage('bot', data.reply);
       renderTotals(data.totals, data.goals);
+      if (data.saveOffer) showSaveOffer(data.saveOffer);
       input.value = '';
+      clearPhoto();
+      renderDayHeader(); // restores the placeholder
+      refreshStreak();
     } catch (ex) {
       pending.remove();
       mine.remove();
-      if (ex.status !== 401) addMessage('bot', "Couldn't send that. Your message is still in the box, so you can send it again.", 'failed');
+      if (ex.status !== 401) {
+        addMessage('bot', ex.status === 400 ? `${ex.message}.` : "Couldn't send that. Your message is still in the box, so you can send it again.", 'failed');
+      }
     }
   } finally {
     sending = false;
@@ -495,6 +585,7 @@ $('confirm-ok').addEventListener('click', async () => {
     selecting = false;
     chosen.clear();
     setStatus(`Removed ${plural(removed, 'food')}.`);
+    refreshStreak();
     await loadDetails();
   } catch (ex) {
     if (ex.status !== 401) setStatus("Couldn't remove that. Check your connection and try again.");
@@ -508,6 +599,7 @@ async function moveFoods(ids, day) {
     selecting = false;
     chosen.clear();
     setStatus(`Moved ${plural(moved, 'food')} to ${dayLabel(day, today())}.`);
+    refreshStreak();
     await loadDetails();
   } catch (ex) {
     if (ex.status !== 401) setStatus("Couldn't move that. Check your connection and try again.");
