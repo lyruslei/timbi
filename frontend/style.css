@@ -107,9 +107,10 @@ input::placeholder { color: var(--gray); }
 .login-form { display: grid; gap: 0.75rem; }
 
 /* App shell */
-/* The whole page scrolls (not a small inner box), so chat is easy to swipe. */
+/* Main screen fits the screen: big charts on top, a short chat box, input at the bottom. */
 .app {
   min-height: 100dvh;
+  height: 100dvh;
   max-width: 640px;
   margin: 0 auto;
   display: flex;
@@ -167,26 +168,56 @@ input::placeholder { color: var(--gray); }
   background: var(--card);
   border-radius: var(--radius-card);
 }
-.summary { padding: 0.6rem 1rem 1rem; }
+.summary {
+  position: relative;
+  flex: 1 0 auto; /* grows to fill, never shrinks under the charts */
+  display: flex;
+  flex-direction: column;
+  padding: 1rem;
+}
 .more-link {
-  display: block;
-  margin-left: auto;
+  position: absolute;
+  top: 0.75rem;
+  right: 1rem;
+  z-index: 1;
   background: transparent;
   color: var(--lime);
   padding: 0.25rem 0;
   font-size: 0.95rem;
 }
+/* Phone: big calorie ring on top; macro pie and legend side by side below. */
 .charts {
+  flex: 1;
+  min-height: 0;
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: var(--gutter);
+  grid-template-columns: 1fr;
+  align-content: space-evenly;
+  gap: 0.75rem;
 }
 .chart { margin: 0; min-width: 0; }
 .chart-box {
   position: relative;
   aspect-ratio: 1;
-  max-width: 200px;
   margin: 0 auto;
+}
+.kcal .chart-box { width: min(62vw, 26dvh, 300px); }
+.macros {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 1.25rem;
+  justify-content: center;
+}
+.macros .chart-box { width: min(34vw, 15dvh, 190px); }
+.macros figcaption { margin: 0; text-align: left; }
+.macros .legend { margin: 0; font-size: 1.05rem; gap: 0.35rem; }
+
+/* Screens wider than tall (laptops, landscape): the two charts side by side. */
+@media (min-aspect-ratio: 1/1) {
+  .charts { grid-template-columns: 1fr 1fr; align-items: center; }
+  .kcal .chart-box { width: min(100%, 30dvh, 260px); }
+  .macros { grid-template-columns: 1fr; justify-items: center; }
+  .macros figcaption { text-align: center; }
 }
 .chart-box canvas { width: 100% !important; height: 100% !important; }
 
@@ -201,13 +232,13 @@ input::placeholder { color: var(--gray); }
 .big {
   color: var(--lime);
   font-weight: 700;
-  font-size: clamp(1.9rem, 8.5vw, 2.8rem);
+  font-size: clamp(2.4rem, 11vw, 3.6rem);
   line-height: 1;
   letter-spacing: -0.02em;
   font-variant-numeric: tabular-nums;
 }
 .kcal.over .big { color: var(--white); }
-.ring-center .muted { font-size: 0.8rem; margin-top: 0.3rem; }
+.ring-center .muted { font-size: 0.9rem; margin-top: 0.35rem; }
 
 .chart figcaption {
   text-align: center;
@@ -233,10 +264,13 @@ input::placeholder { color: var(--gray); }
 .dot.carbs { background: var(--lime-dark); }
 .dot.fat { background: var(--lime-pale); }
 
-/* Chat */
+/* Chat: tall enough for about your last message and the reply; scroll up for older. */
 .chat-log {
-  flex: 1;
-  padding: 1rem 0;
+  flex: none;
+  height: clamp(9.5rem, 25dvh, 16rem);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 0.75rem 0 0.25rem;
   display: flex;
   flex-direction: column;
   gap: 0.6rem;
@@ -253,11 +287,7 @@ input::placeholder { color: var(--gray); }
 .msg.failed { color: var(--gray); font-style: italic; }
 .chat-empty { color: var(--gray); margin: auto 0 0; max-width: 34ch; }
 
-/* Input stays pinned to the bottom of the screen while the page scrolls. */
 .composer {
-  position: sticky;
-  bottom: 0;
-  z-index: 5;
   display: flex;
   gap: 0.5rem;
   padding: 0.6rem 0 calc(var(--gutter) + env(safe-area-inset-bottom));
@@ -312,7 +342,7 @@ input::placeholder { color: var(--gray); }
 .goals input { grid-column: 1 / -1; background: var(--black); }
 
 /* Nutrition screen */
-.details { gap: 0; }
+.app.details { height: auto; min-height: 100dvh; }
 .details-top { padding: 0.9rem 0 0.25rem; }
 .back-button {
   background: transparent;

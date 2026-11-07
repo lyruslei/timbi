@@ -236,9 +236,10 @@ function addMessage(role, text, extra = '') {
   return el;
 }
 
-// The page itself scrolls; jump to the newest message.
+// Keep the chat box scrolled to the newest message.
 function scrollToLatest() {
-  window.scrollTo({ top: document.documentElement.scrollHeight });
+  const log = $('chat-log');
+  log.scrollTop = log.scrollHeight;
 }
 
 function showEmptyChat() {
