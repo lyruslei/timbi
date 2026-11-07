@@ -6,7 +6,7 @@
 ## 1. What it is
 
 Bitelog is a personal food tracker you use by chatting. You type what you ate
-("2 eggs and a slice of toast"), an AI (Google Gemini, free tier) estimates the
+("2 eggs and a slice of toast"), an AI (Claude Haiku 5.5) estimates the
 calories and macros, logs them, and two charts at the top of the screen update.
 
 **For:** one person (the owner). Not a multi-user product.
@@ -23,7 +23,7 @@ calories and macros, logs them, and two charts at the top of the screen update.
 |---|---|
 | Name | Bitelog |
 | Platform | Web app first, phone-ready (PWA) from day one |
-| AI | Google Gemini API, free tier (switched from Claude 2026-11-07 to avoid API cost) |
+| AI | Claude API, Claude Haiku 5.5 (fast, ~$0.20–0.30/month); tried Gemini free tier on 2026-11-07, dropped as too slow when busy |
 | Goals | Typed in manually (settings panel or via chat) |
 | Calorie chart | Ring: eaten vs. goal |
 | Macro chart | Pie: split of protein / carbs / fat eaten (grams + %) |
@@ -61,7 +61,7 @@ Bitelog/
   docs/
 ```
 
-Each file has one job. Only `lib/gemini.js` talks to the AI; only
+Each file has one job. Only `lib/claude.js` talks to the AI; only
 `lib/store.js` talks to Supabase.
 
 ## 4. Screen layout
@@ -123,7 +123,7 @@ local date, so they start at zero after midnight. Old days stay for history.
 - Supabase is accessed only from the backend with the service-role key.
   Row-level security is enabled with no public policies.
 - Secrets live in Vercel environment variables, never in the repo:
-  `GEMINI_API_KEY`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`,
+  `ANTHROPIC_API_KEY`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`,
   `APP_PASSWORD`, `TOKEN_SECRET`, `FRONTEND_ORIGIN`.
 
 ## 8. Error handling
