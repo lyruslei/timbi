@@ -4,11 +4,11 @@ import { loginHandler } from '../api/login.js';
 import { verifyToken } from '../lib/auth.js';
 import { HttpError } from '../lib/http.js';
 
-const env = { APP_PASSWORD: 'open sesame', TOKEN_SECRET: 's' };
+const env = { APP_PASSWORD: 'open sesame please', TOKEN_SECRET: 's' };
 const NOW = Date.UTC(2026, 10, 7);
 
 test('correct password → token that verifies', () => {
-  const { body } = loginHandler({ password: 'open sesame' }, env, NOW);
+  const { body } = loginHandler({ password: 'open sesame please' }, env, NOW);
   assert.equal(verifyToken(body.token, 's', NOW + 1000), true);
 });
 
@@ -27,6 +27,11 @@ test('APP_PASSWORD not configured → 500, never logs in', () => {
 });
 
 test('TOKEN_SECRET not configured → 500', () => {
-  assert.throws(() => loginHandler({ password: 'open sesame' }, { APP_PASSWORD: 'open sesame' }, NOW),
+  assert.throws(() => loginHandler({ password: 'open sesame please' }, { APP_PASSWORD: 'open sesame please' }, NOW),
+    (e) => e instanceof HttpError && e.status === 500);
+});
+
+test('APP_PASSWORD shorter than 12 characters → 500, never logs in', () => {
+  assert.throws(() => loginHandler({ password: 'short' }, { APP_PASSWORD: 'short', TOKEN_SECRET: 's' }, NOW),
     (e) => e instanceof HttpError && e.status === 500);
 });

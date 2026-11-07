@@ -152,16 +152,23 @@ $('chat-form').addEventListener('submit', async (e) => {
   if (shownDay !== localDay(new Date())) await loadToday();
 
   send.disabled = true;
-  addMessage('user', text);
+  const mine = addMessage('user', text);
   const pending = addMessage('bot', 'Logging…', 'pending');
   try {
     const data = await api('/api/chat', { method: 'POST', body: { text, day: localDay(new Date()) } });
     pending.remove();
+    if (data.failed) {
+      // Nothing was saved: drop the bubble and leave the text in the box to resend.
+      mine.remove();
+      addMessage('bot', `${data.reply} Your message is still in the box.`, 'failed');
+      return;
+    }
     addMessage('bot', data.reply);
     renderTotals(data.totals, data.goals);
     input.value = '';
   } catch (ex) {
     pending.remove();
+    mine.remove();
     if (ex.status !== 401) addMessage('bot', "Couldn't send that. Your message is still in the box, so you can send it again.", 'failed');
   } finally {
     send.disabled = false;

@@ -4,6 +4,7 @@ import { sumTotals } from './totals.js';
 import { HttpError } from './http.js';
 
 export const FAIL_REPLY = "Couldn't log that — try again.";
+export const GOALS_REJECTED_NOTE = "I didn't change your goals: calories must be 500–10,000 and each macro 0–1,000g.";
 const MAX_TEXT = 1000;
 const HISTORY = 10;
 
@@ -24,15 +25,20 @@ export async function handleChat({ text, day } = {}, { claude, store }) {
     result = validateClaudeResult(raw);
   } catch (err) {
     console.error('chat failed:', err);
-    return { reply: FAIL_REPLY, totals, goals };
+    return { reply: FAIL_REPLY, totals, goals, failed: true };
   }
 
-  if (result.items.length) await store.addEntries(day, result.items);
-  if (result.goals) await store.setGoals(result.goals);
-  await store.addMessages(day, [{ role: 'user', text: clean }, { role: 'bot', text: result.reply }]);
+  const reply = result.goalsRejected ? `${result.reply} ${GOALS_REJECTED_NOTE}` : result.reply;
+  // Entries, goals and messages are written together or not at all, so a retry never double-logs.
+  await store.logTurn(day, {
+    items: result.items,
+    goals: result.goals,
+    messages: [{ role: 'user', text: clean }, { role: 'bot', text: reply }],
+  });
 
   return {
-    reply: result.reply,
+    failed: false,
+    reply,
     totals: sumTotals([...entries, ...result.items]),
     goals: result.goals ?? goals,
   };

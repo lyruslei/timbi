@@ -12,11 +12,16 @@ function fakeStore() {
     entries: {},
     messages: {},
     async getGoals() { return { ...this.goals }; },
-    async setGoals(g) { this.goals = { ...g }; },
+    turns: 0,
     async getEntries(day) { return [...(this.entries[day] ?? [])]; },
-    async addEntries(day, items) { this.entries[day] = [...(this.entries[day] ?? []), ...items]; },
     async getMessages(day) { return [...(this.messages[day] ?? [])]; },
-    async addMessages(day, msgs) { this.messages[day] = [...(this.messages[day] ?? []), ...msgs]; },
+    // One atomic write per chat turn (a single Postgres function in the real store).
+    async logTurn(day, { items, goals, messages }) {
+      this.turns += 1;
+      if (items.length) this.entries[day] = [...(this.entries[day] ?? []), ...items];
+      if (goals) this.goals = { ...goals };
+      this.messages[day] = [...(this.messages[day] ?? []), ...messages];
+    },
   };
 }
 const claudeSays = (out) => async () => out;
@@ -107,4 +112,36 @@ test('passes last 10 messages of the day as history, plus totals and goals', asy
   assert.equal(args.history[0].text, 'm4');
   assert.equal(args.totals.kcal, 156);
   assert.deepEqual(args.goals, DEFAULT_GOALS);
+});
+
+test('failed turn is flagged so the client keeps the text', async (t) => {
+  t.mock.method(console, 'error', () => {});
+  const r = await handleChat({ text: '2 eggs', day: '2026-11-07' },
+    { store: fakeStore(), claude: claudeSays({ items: 'nope', reply: 'x' }) });
+  assert.equal(r.failed, true);
+});
+
+test('successful turn is not flagged failed', async () => {
+  const r = await handleChat({ text: '2 eggs', day: '2026-11-07' },
+    { store: fakeStore(), claude: claudeSays({ items: [egg], reply: 'ok' }) });
+  assert.equal(r.failed, false);
+});
+
+test('a turn saves entries, goals and messages in one write', async () => {
+  const store = fakeStore();
+  await handleChat({ text: 'eggs, and protein 160', day: '2026-11-07' },
+    { store, claude: claudeSays({ items: [egg], reply: 'ok', goals: { ...DEFAULT_GOALS, protein: 160 } }) });
+  assert.equal(store.turns, 1);
+  assert.equal(store.goals.protein, 160);
+  assert.equal(store.entries['2026-11-07'].length, 1);
+});
+
+test('out-of-range goals are dropped; food still logs and the reply says why', async () => {
+  const store = fakeStore();
+  const r = await handleChat({ text: 'egg, set calories to 400', day: '2026-11-07' },
+    { store, claude: claudeSays({ items: [egg], reply: 'Logged.', goals: { ...DEFAULT_GOALS, kcal: 400 } }) });
+  assert.equal(r.failed, false);
+  assert.deepEqual(store.goals, DEFAULT_GOALS);
+  assert.equal(store.entries['2026-11-07'].length, 1);
+  assert.match(r.reply, /^Logged\. .*goal/);
 });

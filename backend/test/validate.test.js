@@ -18,7 +18,7 @@ test('rejects non-object item', () => assert.equal(validateItem(null).ok, false)
 
 test('result: empty items is fine for questions', () =>
   assert.deepEqual(validateClaudeResult({ items: [], reply: 'You have 40g left.' }),
-    { items: [], reply: 'You have 40g left.', goals: null }));
+    { items: [], reply: 'You have 40g left.', goals: null, goalsRejected: false }));
 test('result: one bad item throws', () =>
   assert.throws(() => validateClaudeResult({ items: [egg, { ...egg, qty: 0 }], reply: 'x' })));
 test('result: missing reply throws', () => assert.throws(() => validateClaudeResult({ items: [] })));
@@ -27,8 +27,8 @@ test('result: goals passed through when valid', () => {
   const goals = { kcal: 2200, protein: 160, carbs: 220, fat: 70 };
   assert.deepEqual(validateClaudeResult({ items: [], reply: 'ok', goals }).goals, goals);
 });
-test('result: invalid goals throws', () =>
-  assert.throws(() => validateClaudeResult({ items: [], reply: 'ok', goals: { kcal: 100 } })));
+test('result: malformed goals object is dropped, not fatal', () =>
+  assert.equal(validateClaudeResult({ items: [], reply: 'ok', goals: { kcal: 100 } }).goals, null));
 
 test('goals: accepts', () => assert.equal(validateGoals({ kcal: 2200, protein: 150, carbs: 220, fat: 70 }).ok, true));
 test('goals: rejects kcal 300', () => assert.equal(validateGoals({ kcal: 300, protein: 1, carbs: 1, fat: 1 }).ok, false));
@@ -39,4 +39,10 @@ test('day format', () => {
   assert.equal(isValidDay('11/07/2026'), false);
   assert.equal(isValidDay('2026-02-30'), false);
   assert.equal(isValidDay(undefined), false);
+});
+
+test('result: invalid goals are dropped and flagged, not fatal', () => {
+  const r = validateClaudeResult({ items: [], reply: 'ok', goals: { kcal: 100, protein: 1, carbs: 1, fat: 1 } });
+  assert.equal(r.goals, null);
+  assert.equal(r.goalsRejected, true);
 });

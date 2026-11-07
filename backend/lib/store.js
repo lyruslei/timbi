@@ -14,17 +14,15 @@ export function createStore(supabase) {
     async setGoals(g) {
       must(await supabase.from('goals').update({ kcal: g.kcal, protein: g.protein, carbs: g.carbs, fat: g.fat }).eq('id', 1));
     },
+    // One transaction: see log_turn in supabase/schema.sql.
+    async logTurn(day, { items, goals, messages }) {
+      must(await supabase.rpc('log_turn', { p_day: day, p_items: items, p_goals: goals, p_messages: messages }));
+    },
     async getEntries(day) {
       return must(await supabase.from('entries').select('food, qty, kcal, protein, carbs, fat').eq('day', day).order('created_at'));
     },
-    async addEntries(day, items) {
-      must(await supabase.from('entries').insert(items.map((it) => ({ day, ...it }))));
-    },
     async getMessages(day) {
       return must(await supabase.from('messages').select('role, text').eq('day', day).order('created_at').order('id'));
-    },
-    async addMessages(day, msgs) {
-      must(await supabase.from('messages').insert(msgs.map((m) => ({ day, role: m.role, text: m.text }))));
     },
   };
 }

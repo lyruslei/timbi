@@ -37,13 +37,15 @@ export function validateClaudeResult(raw) {
     if (!r.ok) throw new Error(`item ${i}: ${r.error}`);
     return r.item;
   });
+  // A bad goal change shouldn't throw away the food that came with it: drop just the goals.
   let goals = null;
+  let goalsRejected = false;
   if (raw.goals != null) {
     const r = validateGoals(raw.goals);
-    if (!r.ok) throw new Error(r.error);
-    goals = r.goals;
+    if (r.ok) goals = r.goals;
+    else goalsRejected = true;
   }
-  return { items, reply: raw.reply.trim(), goals };
+  return { items, reply: raw.reply.trim(), goals, goalsRejected };
 }
 
 export function isValidDay(s) {
