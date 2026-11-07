@@ -336,6 +336,10 @@ input::placeholder { color: var(--gray); }
 .offer-actions .pill { padding: 0.45rem 1rem; }
 .offer-actions .pill.primary { background: var(--lime); color: var(--black); }
 
+.myfood-row { width: 100%; text-align: left; background: transparent; padding: 0; border-radius: 0; display: flex; align-items: center; gap: 0.75rem; font-weight: 400; }
+.myfood-row .serving { color: var(--gray); font-size: 0.85rem; display: block; }
+#myfood-dialog { max-height: 90dvh; overflow-y: auto; }
+
 /* Sheets (day picker, goals) */
 .sheet {
   border: 0;

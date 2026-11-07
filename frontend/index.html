@@ -35,7 +35,7 @@
     <header class="top">
       <h1 class="wordmark" aria-label="timbi">t<span class="i">ı</span>mb<span class="i">ı</span></h1>
       <span id="streak" class="streak" hidden><span aria-hidden="true">🔥</span><b id="streak-n">0</b></span>
-      <button id="goals-button" class="icon-button" aria-label="Edit daily goals" title="Edit daily goals">
+      <button id="goals-button" class="icon-button" aria-label="Settings" title="Settings">
         <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path fill="currentColor" d="M19.4 13a7.5 7.5 0 0 0 0-2l2-1.6-2-3.4-2.4 1a7.6 7.6 0 0 0-1.7-1L15 3.5h-4l-.4 2.5a7.6 7.6 0 0 0-1.7 1l-2.4-1-2 3.4L6.6 11a7.5 7.5 0 0 0 0 2l-2 1.6 2 3.4 2.4-1c.5.4 1.1.7 1.7 1l.4 2.5h4l.4-2.5c.6-.3 1.2-.6 1.7-1l2.4 1 2-3.4zM13 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7z" transform="translate(-1 0)"/></svg>
       </button>
     </header>
@@ -132,6 +132,56 @@
       <button id="remove-selected" type="button" class="pill">Remove</button>
     </div>
   </div>
+
+  <!-- My foods screen -->
+  <div id="myfoods-view" class="app details" hidden>
+    <header class="details-top">
+      <button id="myfoods-back" class="back-button" type="button"><span aria-hidden="true">‹</span> Back</button>
+    </header>
+    <h1 class="title">My foods</h1>
+    <p class="details-day">Saved foods log with the exact same numbers every time.</p>
+    <div class="details-scroll">
+      <section class="card block">
+        <p id="myfoods-status" class="note" role="status" hidden></p>
+        <ul id="myfoods-list" class="food-list"></ul>
+      </section>
+    </div>
+  </div>
+
+  <!-- Settings menu -->
+  <dialog id="menu-dialog" class="sheet" aria-labelledby="menu-title">
+    <h2 id="menu-title" class="sheet-title">Settings</h2>
+    <div class="sheet-actions">
+      <button type="button" id="menu-goals" class="pill wide">Daily goals</button>
+      <button type="button" id="menu-myfoods" class="pill wide">My foods</button>
+      <button type="button" id="menu-close" class="ghost wide">Close</button>
+    </div>
+  </dialog>
+
+  <!-- Edit a saved food -->
+  <dialog id="myfood-dialog" class="sheet goals" aria-labelledby="myfood-title">
+    <form id="myfood-form" method="dialog">
+      <h2 id="myfood-title">Edit food</h2>
+      <label>Name<input name="name" type="text" maxlength="60" required></label>
+      <label>Serving<input name="serving" type="text" maxlength="40" placeholder="1 serving"></label>
+      <label>Calories <span class="unit">kcal</span><input name="kcal" type="number" min="0" max="5000" step="any" required></label>
+      <label>Protein <span class="unit">g</span><input name="protein" type="number" min="0" max="500" step="any" required></label>
+      <label>Carbs <span class="unit">g</span><input name="carbs" type="number" min="0" max="500" step="any" required></label>
+      <label>Fat <span class="unit">g</span><input name="fat" type="number" min="0" max="500" step="any" required></label>
+      <label>Fiber <span class="unit">g</span><input name="fiber" type="number" min="0" max="100" step="any"></label>
+      <label>Sugar <span class="unit">g</span><input name="sugar" type="number" min="0" max="300" step="any"></label>
+      <label>Saturated fat <span class="unit">g</span><input name="sat_fat" type="number" min="0" max="200" step="any"></label>
+      <label>Sodium <span class="unit">mg</span><input name="sodium" type="number" min="0" max="20000" step="any"></label>
+      <label>Cholesterol <span class="unit">mg</span><input name="cholesterol" type="number" min="0" max="3000" step="any"></label>
+      <label>Potassium <span class="unit">mg</span><input name="potassium" type="number" min="0" max="20000" step="any"></label>
+      <p id="myfood-error" class="error" role="alert" hidden></p>
+      <div class="dialog-actions">
+        <button type="button" id="myfood-delete" class="ghost">Delete</button>
+        <button type="button" id="myfood-cancel" class="ghost">Cancel</button>
+        <button type="submit" id="myfood-save" class="primary">Save</button>
+      </div>
+    </form>
+  </dialog>
 
   <!-- Food actions -->
   <dialog id="food-dialog" class="sheet" aria-labelledby="food-dialog-title">

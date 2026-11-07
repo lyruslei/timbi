@@ -36,6 +36,7 @@ async function showApp() {
 window.addEventListener('bitelog:logout', () => {
   for (const d of document.querySelectorAll('dialog')) if (d.open) d.close();
   $('details-view').hidden = true;
+  $('myfoods-view').hidden = true;
   showLogin();
 });
 
@@ -388,10 +389,116 @@ $('chat-form').addEventListener('submit', async (e) => {
 const goalsDialog = $('goals-dialog');
 const goalsForm = $('goals-form');
 
-$('goals-button').addEventListener('click', () => {
+function openGoals() {
   for (const k of ['kcal', 'protein', 'carbs', 'fat']) goalsForm.elements[k].value = Math.round(goals[k]);
   $('goals-error').hidden = true;
   goalsDialog.showModal();
+}
+
+// ⚙ opens a small menu: Daily goals / My foods.
+$('goals-button').addEventListener('click', () => $('menu-dialog').showModal());
+$('menu-close').addEventListener('click', () => $('menu-dialog').close());
+$('menu-goals').addEventListener('click', () => { $('menu-dialog').close(); openGoals(); });
+$('menu-myfoods').addEventListener('click', () => { $('menu-dialog').close(); openMyFoods(); });
+
+// ---------- My foods ----------
+
+const MYFOOD_NUMBERS = ['kcal', 'protein', 'carbs', 'fat', 'fiber', 'sugar', 'sat_fat', 'sodium', 'cholesterol', 'potassium'];
+const myFoodForm = $('myfood-form');
+let editingFood = null;
+
+function myFoodsStatus(text) {
+  $('myfoods-status').textContent = text;
+  $('myfoods-status').hidden = !text;
+}
+
+async function loadMyFoods() {
+  const list = $('myfoods-list');
+  try {
+    const { foods } = await api('/api/my-foods');
+    list.replaceChildren();
+    if (!foods.length) {
+      const li = document.createElement('li');
+      li.className = 'food-empty';
+      li.textContent = 'Nothing saved yet. Send a photo of a nutrition label and tap Save to keep it here.';
+      list.append(li);
+    }
+    for (const f of foods) {
+      const li = document.createElement('li');
+      const row = document.createElement('button');
+      row.type = 'button';
+      row.className = 'myfood-row';
+      const name = document.createElement('span');
+      name.className = 'food-name';
+      name.textContent = f.name;
+      const serving = document.createElement('span');
+      serving.className = 'serving';
+      serving.textContent = `${f.serving} · ${fmt(f.protein)}g protein`;
+      name.append(serving);
+      const kcal = document.createElement('span');
+      kcal.className = 'food-kcal';
+      kcal.textContent = `${fmt(f.kcal)} kcal`;
+      row.append(name, kcal);
+      row.setAttribute('aria-label', `Edit ${f.name}`);
+      row.addEventListener('click', () => openMyFoodEditor(f));
+      li.append(row);
+      list.append(li);
+    }
+  } catch (ex) {
+    if (ex.status !== 401) myFoodsStatus("Couldn't load My foods. Check your connection and try again.");
+  }
+}
+
+function openMyFoods() {
+  myFoodsStatus('');
+  $('app-view').hidden = true;
+  $('myfoods-view').hidden = false;
+  $('myfoods-back').focus();
+  loadMyFoods();
+}
+$('myfoods-back').addEventListener('click', () => {
+  $('myfoods-view').hidden = true;
+  $('app-view').hidden = false;
+});
+
+function openMyFoodEditor(f) {
+  editingFood = f;
+  myFoodForm.elements.name.value = f.name;
+  myFoodForm.elements.serving.value = f.serving;
+  for (const k of MYFOOD_NUMBERS) myFoodForm.elements[k].value = f[k] ?? '';
+  $('myfood-error').hidden = true;
+  $('myfood-dialog').showModal();
+}
+$('myfood-cancel').addEventListener('click', () => $('myfood-dialog').close());
+myFoodForm.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const food = { name: myFoodForm.elements.name.value, serving: myFoodForm.elements.serving.value };
+  for (const k of MYFOOD_NUMBERS) {
+    const v = myFoodForm.elements[k].value;
+    food[k] = v === '' ? null : Number(v);
+  }
+  try {
+    await api('/api/my-foods', { method: 'PUT', body: { id: editingFood.id, food } });
+    $('myfood-dialog').close();
+    myFoodsStatus(`Saved ${food.name.trim()}.`);
+    loadMyFoods();
+  } catch (ex) {
+    if (ex.status !== 401) {
+      $('myfood-error').textContent = ex.status === 400 || ex.status === 409 ? `${ex.message}.` : "Couldn't save. Check your connection and try again.";
+      $('myfood-error').hidden = false;
+    }
+  }
+});
+$('myfood-delete').addEventListener('click', async () => {
+  if (!window.confirm(`Delete ${editingFood.name} from My foods? Foods you already logged stay as they are.`)) return;
+  try {
+    await api('/api/my-foods', { method: 'DELETE', body: { ids: [editingFood.id] } });
+    $('myfood-dialog').close();
+    myFoodsStatus(`Deleted ${editingFood.name}.`);
+    loadMyFoods();
+  } catch (ex) {
+    if (ex.status !== 401) { $('myfood-error').textContent = "Couldn't delete. Try again."; $('myfood-error').hidden = false; }
+  }
 });
 $('goals-cancel').addEventListener('click', () => goalsDialog.close());
 
