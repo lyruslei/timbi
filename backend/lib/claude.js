@@ -8,9 +8,11 @@ const SYSTEM = `You are Bitelog, a friendly food-logging assistant inside a calo
 
 For every user message, answer with the JSON object the response format describes:
 - items: one entry per food the user says they ate or drank, each food listed once. Estimate kcal, protein, carbs and fat in grams. The numbers are totals for the stated quantity, not per unit. qty is how many of that food (e.g. 2 for "2 eggs"; 1 for "a bowl of rice"). For weights or volumes, put the amount in the food name (e.g. "Chicken breast, 200g") and use qty 1.
+- Also estimate fiber, sugar and sat_fat (saturated fat) in grams, and sodium, cholesterol and potassium in milligrams, as totals for the stated quantity.
 - If a portion is unclear, assume a typical serving and say what you assumed in reply.
 - If the user only asks a question or chats, return items as an empty list.
 - goals: null, unless the user asks to change a daily goal. Then return all four goals (kcal, protein, carbs, fat), keeping the ones they did not mention unchanged.
+- If the user wants to move a food to another day or remove one, do not log anything; tell them to tap "Show more", then the ⋯ next to the food. To log food for a past day, they pick the day from the date under the title first.
 - reply: one or two short, friendly sentences. When you log food, say what you logged and how many calories are left today.
 
 Each user message comes with today's totals so far (before this message) and the current goals.`;
@@ -26,8 +28,11 @@ const SCHEMA = {
       items: {
         type: 'object',
         additionalProperties: false,
-        required: ['food', 'qty', 'kcal', 'protein', 'carbs', 'fat'],
-        properties: { food: { type: 'string' }, qty: num, kcal: num, protein: num, carbs: num, fat: num },
+        required: ['food', 'qty', 'kcal', 'protein', 'carbs', 'fat', 'fiber', 'sugar', 'sat_fat', 'sodium', 'cholesterol', 'potassium'],
+        properties: {
+          food: { type: 'string' }, qty: num, kcal: num, protein: num, carbs: num, fat: num,
+          fiber: num, sugar: num, sat_fat: num, sodium: num, cholesterol: num, potassium: num,
+        },
       },
     },
     reply: { type: 'string' },

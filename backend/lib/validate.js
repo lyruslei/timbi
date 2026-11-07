@@ -3,6 +3,9 @@
 const isNum = (n) => typeof n === 'number' && Number.isFinite(n);
 const inRange = (n, min, max) => isNum(n) && n >= min && n <= max;
 const MACROS = ['protein', 'carbs', 'fat'];
+// Optional extra nutrients and the largest believable amount in one food line.
+// g: fiber, sugar, sat_fat. mg: sodium, cholesterol, potassium.
+export const NUTRIENT_LIMITS = { fiber: 100, sugar: 300, sat_fat: 200, sodium: 20000, cholesterol: 3000, potassium: 20000 };
 
 export function validateItem(item) {
   if (!item || typeof item !== 'object') return { ok: false, error: 'item is not an object' };
@@ -19,7 +22,11 @@ export function validateItem(item) {
   const macroKcal = 4 * item.protein + 4 * item.carbs + 9 * item.fat;
   if (macroKcal > item.kcal * 1.5 + 50) return { ok: false, error: 'macros do not match kcal' };
   const { kcal, protein, carbs, fat } = item;
-  return { ok: true, item: { food, qty, kcal, protein, carbs, fat } };
+  // A missing or unbelievable nutrient is stored as unknown (null), never a wrong 0,
+  // and never fails the meal.
+  const extras = Object.fromEntries(Object.entries(NUTRIENT_LIMITS)
+    .map(([k, max]) => [k, inRange(item[k], 0, max) ? item[k] : null]));
+  return { ok: true, item: { food, qty, kcal, protein, carbs, fat, ...extras } };
 }
 
 export function validateGoals(g) {

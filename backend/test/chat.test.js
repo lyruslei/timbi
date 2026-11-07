@@ -30,7 +30,7 @@ test('logs items under the given day and returns new totals', async () => {
   const store = fakeStore();
   const r = await handleChat({ text: '2 eggs', day: '2026-11-07' },
     { store, ai: aiSays({ items: [egg], reply: 'Logged.' }) });
-  assert.deepEqual(store.entries['2026-11-07'], [egg]);
+  assert.deepEqual(store.entries['2026-11-07'], [{ ...egg, ...{ fiber: null, sugar: null, sat_fat: null, sodium: null, cholesterol: null, potassium: null } }]);
   assert.equal(r.totals.kcal, 156);
   assert.equal(r.reply, 'Logged.');
   assert.deepEqual(r.goals, DEFAULT_GOALS);

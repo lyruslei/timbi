@@ -4,7 +4,7 @@ import { validateItem, validateClaudeResult, validateGoals, isValidDay } from '.
 
 const egg = { food: 'Egg, large', qty: 2, kcal: 156, protein: 12.6, carbs: 1.2, fat: 10.6 };
 
-test('accepts a sane item', () => assert.deepEqual(validateItem(egg), { ok: true, item: egg }));
+test('accepts a sane item', () => assert.deepEqual(validateItem(egg), { ok: true, item: { ...egg, ...{ fiber: null, sugar: null, sat_fat: null, sodium: null, cholesterol: null, potassium: null } } }));
 test('trims food name', () => assert.equal(validateItem({ ...egg, food: '  Egg ' }).item.food, 'Egg'));
 test('rejects string numbers', () => assert.equal(validateItem({ ...egg, kcal: '156' }).ok, false));
 test('rejects negative', () => assert.equal(validateItem({ ...egg, fat: -1 }).ok, false));
@@ -56,5 +56,27 @@ test('result: invalid goals are dropped and flagged, not fatal', () => {
 test('result: all-zero duplicate items are dropped (they add nothing to the totals)', () => {
   const adobo = { food: 'Chicken adobo (1 serving)', qty: 1, kcal: 330, protein: 32, carbs: 6, fat: 20 };
   const ghost = { food: 'Chicken adobo', qty: 1, kcal: 0, protein: 0, carbs: 0, fat: 0 };
-  assert.deepEqual(validateClaudeResult({ items: [adobo, ghost], reply: 'ok' }).items, [adobo]);
+  assert.deepEqual(validateClaudeResult({ items: [adobo, ghost], reply: 'ok' }).items, [{ ...adobo, ...{ fiber: null, sugar: null, sat_fat: null, sodium: null, cholesterol: null, potassium: null } }]);
+});
+
+// ---- extra nutrients (optional, never fail a meal) ----
+const NUTS = { fiber: 0.2, sugar: 1, sat_fat: 3.3, sodium: 140, cholesterol: 370, potassium: 140 };
+
+test('extra nutrients pass through when sane', () => {
+  const r = validateItem({ ...egg, ...NUTS });
+  assert.equal(r.ok, true);
+  for (const [k, v] of Object.entries(NUTS)) assert.equal(r.item[k], v);
+});
+test('missing nutrients become null, not 0', () => {
+  const r = validateItem(egg);
+  assert.equal(r.ok, true);
+  for (const k of Object.keys(NUTS)) assert.equal(r.item[k], null);
+});
+test('an out-of-range nutrient becomes null and the item still logs', () => {
+  const r = validateItem({ ...egg, ...NUTS, sodium: 999999, sugar: -2, fiber: '3' });
+  assert.equal(r.ok, true);
+  assert.equal(r.item.sodium, null);
+  assert.equal(r.item.sugar, null);
+  assert.equal(r.item.fiber, null);
+  assert.equal(r.item.potassium, 140);
 });

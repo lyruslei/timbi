@@ -1,6 +1,7 @@
 import { api, getToken, setToken } from './lib/api.js';
 import { localDay, ringData, macroSplit } from './lib/format.js';
 import { addDays, dayLabel, isFuture, monthGrid, monthTitle } from './lib/days.js';
+import { nutrientRows, macroRows } from './lib/nutrition.js';
 
 const $ = (id) => document.getElementById(id);
 const css = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
@@ -31,7 +32,8 @@ async function showApp() {
 }
 
 window.addEventListener('bitelog:logout', () => {
-  for (const id of ['goals-dialog', 'day-dialog']) if ($(id).open) $(id).close();
+  for (const d of document.querySelectorAll('dialog')) if (d.open) d.close();
+  $('details-view').hidden = true;
   showLogin();
 });
 
@@ -177,17 +179,29 @@ function renderPicker() {
   }
 }
 
-function pick(day) {
-  dayDialog.close();
-  if (day !== selectedDay) selectDay(day);
-}
+// The picker either switches the day being viewed, or picks where to move foods.
+let pickerMode = 'view';
+let moveIds = [];
 
-$('day-button').addEventListener('click', () => {
+function openPicker(mode, ids = []) {
+  pickerMode = mode;
+  moveIds = ids;
+  $('day-dialog-title').textContent = mode === 'move'
+    ? (ids.length === 1 ? 'Move this food to which day?' : 'Move ' + ids.length + ' foods to which day?')
+    : 'Choose a day';
   [viewYear, viewMonth] = selectedDay.split('-').map(Number);
   viewMonth -= 1;
   renderPicker();
   dayDialog.showModal();
-});
+}
+
+function pick(day) {
+  dayDialog.close();
+  if (pickerMode === 'move') moveFoods(moveIds, day);
+  else if (day !== selectedDay) selectDay(day);
+}
+
+$('day-button').addEventListener('click', () => openPicker('view'));
 $('prev-month').addEventListener('click', () => {
   viewMonth -= 1;
   if (viewMonth < 0) { viewMonth = 11; viewYear -= 1; }
@@ -302,6 +316,187 @@ goalsForm.addEventListener('submit', async (e) => {
     save.disabled = false;
   }
 });
+
+// ---------- Nutrition screen ----------
+
+let dayEntries = [];
+let selecting = false;
+const chosen = new Set();
+const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
+
+function barRow({ label, text, refText, pct, over }, unknown = false) {
+  const li = document.createElement('li');
+  li.className = `bar-row${over ? ' over' : ''}${unknown ? ' unknown' : ''}`;
+  const name = document.createElement('span');
+  name.className = 'name';
+  name.textContent = label;
+  const value = document.createElement('span');
+  value.className = 'value';
+  value.textContent = text;
+  if (refText) {
+    const ref = document.createElement('span');
+    ref.className = 'ref';
+    ref.textContent = refText;
+    value.append(ref);
+  }
+  const track = document.createElement('div');
+  track.className = 'bar-track';
+  const fill = document.createElement('div');
+  fill.className = 'bar-fill';
+  fill.style.width = `${pct}%`;
+  track.append(fill);
+  li.append(name, value, track);
+  return li;
+}
+
+function renderFoods() {
+  const list = $('food-list');
+  list.replaceChildren();
+  $('select-button').hidden = dayEntries.length === 0;
+  $('select-button').textContent = selecting ? 'Done' : 'Select';
+  if (!dayEntries.length) {
+    const li = document.createElement('li');
+    li.className = 'food-empty';
+    li.textContent = 'Nothing logged on this day.';
+    list.append(li);
+  }
+  for (const e of dayEntries) {
+    const li = document.createElement('li');
+    if (selecting) {
+      const box = document.createElement('input');
+      box.type = 'checkbox';
+      box.checked = chosen.has(e.id);
+      box.setAttribute('aria-label', `Select ${e.food}`);
+      box.addEventListener('change', () => {
+        if (box.checked) chosen.add(e.id); else chosen.delete(e.id);
+        renderSelectBar();
+      });
+      li.append(box);
+    }
+    const name = document.createElement('span');
+    name.className = 'food-name';
+    name.textContent = e.qty && e.qty !== 1 ? `${e.food} ×${e.qty}` : e.food;
+    const kcal = document.createElement('span');
+    kcal.className = 'food-kcal';
+    kcal.textContent = `${fmt(e.kcal)} kcal`;
+    li.append(name, kcal);
+    if (!selecting) {
+      const menu = document.createElement('button');
+      menu.type = 'button';
+      menu.className = 'menu-button';
+      menu.textContent = '⋯';
+      menu.setAttribute('aria-label', `Options for ${e.food}`);
+      menu.addEventListener('click', () => openFoodMenu(e));
+      li.append(menu);
+    }
+    list.append(li);
+  }
+  renderSelectBar();
+}
+
+function renderSelectBar() {
+  $('select-bar').hidden = !selecting;
+  $('select-count').textContent = `${chosen.size} selected`;
+  $('move-selected').disabled = $('remove-selected').disabled = chosen.size === 0;
+}
+
+function setStatus(text) {
+  $('foods-status').textContent = text;
+  $('foods-status').hidden = !text;
+}
+
+async function loadDetails() {
+  const day = selectedDay;
+  $('details-day').textContent = dayLabel(day, today());
+  try {
+    const data = await api(`/api/today?day=${day}`);
+    if (day !== selectedDay) return;
+    $('macro-rows').replaceChildren(...macroRows(data.totals, data.goals).map((r) => barRow(r)));
+    $('nutrient-rows').replaceChildren(...nutrientRows(data.nutrients).map((r) => barRow(r, r.text === '—')));
+    const noneKnown = (data.entries || []).length > 0 && nutrientRows(data.nutrients).every((r) => r.text === '—');
+    $('nutrients-note').hidden = !(data.nutrients?.partial || noneKnown);
+    dayEntries = data.entries || [];
+    renderFoods();
+  } catch (ex) {
+    if (ex.status !== 401) setStatus("Couldn't load this day. Check your connection and try again.");
+  }
+}
+
+function openDetails() {
+  selecting = false;
+  chosen.clear();
+  setStatus('');
+  $('app-view').hidden = true;
+  $('details-view').hidden = false;
+  $('details-back').focus();
+  loadDetails();
+}
+
+function closeDetails() {
+  $('details-view').hidden = true;
+  $('app-view').hidden = false;
+  loadDay(selectedDay); // totals may have changed
+}
+
+$('more-button').addEventListener('click', openDetails);
+$('details-back').addEventListener('click', closeDetails);
+$('select-button').addEventListener('click', () => {
+  selecting = !selecting;
+  chosen.clear();
+  renderFoods();
+});
+
+// Food ⋯ menu
+let menuFood = null;
+function openFoodMenu(entry) {
+  menuFood = entry;
+  $('food-dialog-title').textContent = entry.food;
+  $('food-dialog').showModal();
+}
+$('food-cancel').addEventListener('click', () => $('food-dialog').close());
+$('food-move').addEventListener('click', () => {
+  $('food-dialog').close();
+  openPicker('move', [menuFood.id]);
+});
+$('food-remove').addEventListener('click', () => {
+  $('food-dialog').close();
+  confirmRemove([menuFood.id], menuFood.food);
+});
+$('move-selected').addEventListener('click', () => openPicker('move', [...chosen]));
+$('remove-selected').addEventListener('click', () => confirmRemove([...chosen]));
+
+let removeIds = [];
+function confirmRemove(ids, name) {
+  removeIds = ids;
+  $('confirm-title').textContent = name ? `Remove ${name}?` : `Remove ${plural(ids.length, 'food')}?`;
+  $('confirm-dialog').showModal();
+}
+$('confirm-cancel').addEventListener('click', () => $('confirm-dialog').close());
+$('confirm-ok').addEventListener('click', async () => {
+  $('confirm-dialog').close();
+  try {
+    const { removed } = await api('/api/entries', { method: 'DELETE', body: { ids: removeIds } });
+    selecting = false;
+    chosen.clear();
+    setStatus(`Removed ${plural(removed, 'food')}.`);
+    await loadDetails();
+  } catch (ex) {
+    if (ex.status !== 401) setStatus("Couldn't remove that. Check your connection and try again.");
+  }
+});
+
+async function moveFoods(ids, day) {
+  if (day === selectedDay) return;
+  try {
+    const { moved } = await api('/api/entries', { method: 'PATCH', body: { ids, day } });
+    selecting = false;
+    chosen.clear();
+    setStatus(`Moved ${plural(moved, 'food')} to ${dayLabel(day, today())}.`);
+    await loadDetails();
+  } catch (ex) {
+    if (ex.status !== 401) setStatus("Couldn't move that. Check your connection and try again.");
+  }
+}
 
 // ---------- Start ----------
 

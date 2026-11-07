@@ -47,7 +47,9 @@
       <button id="back-today" class="pill" hidden>Back to today</button>
     </div>
 
-    <section class="charts card" aria-label="Totals for the chosen day">
+    <section class="summary card" aria-label="Totals for the chosen day">
+      <button id="more-button" class="more-link" type="button">Show more <span aria-hidden="true">›</span></button>
+      <div class="charts">
       <figure class="chart kcal">
         <div class="chart-box">
           <canvas id="kcal-chart" aria-hidden="true"></canvas>
@@ -71,6 +73,7 @@
           </ul>
         </figcaption>
       </figure>
+      </div>
     </section>
 
     <section id="chat-log" class="chat-log" aria-live="polite" aria-label="Chat"></section>
@@ -82,9 +85,66 @@
     </form>
   </div>
 
+  <!-- Nutrition screen -->
+  <div id="details-view" class="app details" hidden>
+    <header class="details-top">
+      <button id="details-back" class="back-button" type="button"><span aria-hidden="true">‹</span> Back</button>
+    </header>
+    <h1 class="title">Nutrition</h1>
+    <p id="details-day" class="details-day"></p>
+
+    <div class="details-scroll">
+      <section class="card block" aria-labelledby="macros-title">
+        <h2 id="macros-title" class="block-title">Macros</h2>
+        <ul id="macro-rows" class="bars"></ul>
+      </section>
+
+      <section class="card block" aria-labelledby="nutrients-title">
+        <h2 id="nutrients-title" class="block-title">Nutrients</h2>
+        <ul id="nutrient-rows" class="bars"></ul>
+        <p id="nutrients-note" class="note" hidden>Some foods on this day were logged before nutrients were tracked, so these totals are missing or may be low.</p>
+      </section>
+
+      <section class="card block" aria-labelledby="foods-title">
+        <div class="block-head">
+          <h2 id="foods-title" class="block-title">What you ate</h2>
+          <button id="select-button" type="button" class="text-button">Select</button>
+        </div>
+        <p id="foods-status" class="note" role="status" hidden></p>
+        <ul id="food-list" class="food-list"></ul>
+      </section>
+    </div>
+
+    <div id="select-bar" class="select-bar" hidden>
+      <span id="select-count">0 selected</span>
+      <button id="move-selected" type="button" class="pill">Move</button>
+      <button id="remove-selected" type="button" class="pill">Remove</button>
+    </div>
+  </div>
+
+  <!-- Food actions -->
+  <dialog id="food-dialog" class="sheet" aria-labelledby="food-dialog-title">
+    <h2 id="food-dialog-title" class="sheet-title"></h2>
+    <div class="sheet-actions">
+      <button type="button" id="food-move" class="pill wide">Move to another day</button>
+      <button type="button" id="food-remove" class="pill wide">Remove</button>
+      <button type="button" id="food-cancel" class="ghost wide">Cancel</button>
+    </div>
+  </dialog>
+
+  <!-- Remove confirmation -->
+  <dialog id="confirm-dialog" class="sheet" aria-labelledby="confirm-title">
+    <h2 id="confirm-title" class="sheet-title"></h2>
+    <p class="muted">This can't be undone.</p>
+    <div class="dialog-actions">
+      <button type="button" id="confirm-cancel" class="ghost">Cancel</button>
+      <button type="button" id="confirm-ok" class="primary">Remove</button>
+    </div>
+  </dialog>
+
   <!-- Day picker -->
   <dialog id="day-dialog" class="sheet" aria-labelledby="day-dialog-title">
-    <h2 id="day-dialog-title" class="sr-only">Choose a day</h2>
+    <h2 id="day-dialog-title" class="sheet-title">Choose a day</h2>
     <div class="pills">
       <button type="button" class="pill" data-quick="0">Today</button>
       <button type="button" class="pill" data-quick="-1">Yesterday</button>

@@ -153,3 +153,26 @@ local date, so they start at zero after midnight. Old days stay for history.
 ## 11. Out of scope (Phase 1)
 
 Multiple users, sign-up, barcode scanning, app-store apps, offline logging.
+
+## 12. Addendum (2026-11-08): nutrition screen and food edits
+
+**Show more.** A "Show more ›" button at the top right of the charts card opens a
+Nutrition screen for the selected day, with a Back button.
+
+**Nutrition screen.**
+- Macros (kcal, protein, carbs, fat) as bars toward the user's goals.
+- Six more nutrients against FDA daily values, shown for context (not editable yet):
+  fiber 28 g (reach), sugar 50 g (stay under), saturated fat 20 g (stay under),
+  sodium 2,300 mg (stay under), cholesterol 300 mg (stay under), potassium 4,700 mg (reach).
+- "What you ate": every food logged that day with its calories.
+
+**Nutrient data.** The AI also estimates the six nutrients per food. They are
+optional: a missing or out-of-range value is stored as unknown (null), never a
+wrong 0, and never fails the meal. Foods logged before this change have none;
+day totals add up the known values and the screen notes when some are missing.
+
+**Editing foods.** Each food has a ⋯ menu: *Move to another day* (calendar, no
+future days) and *Remove* (with confirmation). A select mode moves or removes
+several at once. Chat history is not changed; only entries and totals are.
+Backend: `PATCH /api/entries {ids, day}` and `DELETE /api/entries {ids}`,
+at most 100 ids, positive integers only.

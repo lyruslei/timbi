@@ -71,3 +71,48 @@ revoke execute on function log_turn(date, jsonb, jsonb, jsonb) from public, anon
 grant usage on schema public to service_role;
 grant select, insert, update on goals, entries, messages to service_role;
 grant execute on function log_turn(date, jsonb, jsonb, jsonb) to service_role;
+
+-- ---------------------------------------------------------------------------
+-- 2026-11-08: extra nutrients per food, and moving/removing foods.
+-- Nutrients are nullable: null means unknown (e.g. foods logged before this).
+alter table entries
+  add column if not exists fiber real,
+  add column if not exists sugar real,
+  add column if not exists sat_fat real,
+  add column if not exists sodium real,
+  add column if not exists cholesterol real,
+  add column if not exists potassium real;
+
+create or replace function log_turn(p_day date, p_items jsonb, p_goals jsonb, p_messages jsonb)
+returns void
+language plpgsql
+security invoker
+set search_path = public
+as $$
+begin
+  insert into entries (day, food, qty, kcal, protein, carbs, fat,
+                       fiber, sugar, sat_fat, sodium, cholesterol, potassium)
+  select p_day, i->>'food', (i->>'qty')::real, (i->>'kcal')::real,
+         (i->>'protein')::real, (i->>'carbs')::real, (i->>'fat')::real,
+         (i->>'fiber')::real, (i->>'sugar')::real, (i->>'sat_fat')::real,
+         (i->>'sodium')::real, (i->>'cholesterol')::real, (i->>'potassium')::real
+  from jsonb_array_elements(coalesce(p_items, '[]'::jsonb)) as i;
+
+  if p_goals is not null and p_goals <> 'null'::jsonb then
+    update goals set kcal = (p_goals->>'kcal')::real, protein = (p_goals->>'protein')::real,
+                     carbs = (p_goals->>'carbs')::real, fat = (p_goals->>'fat')::real
+    where id = 1;
+  end if;
+
+  insert into messages (day, role, text)
+  select p_day, m->>'role', m->>'text'
+  from jsonb_array_elements(p_messages) with ordinality as t(m, n)
+  order by n;
+end;
+$$;
+
+revoke execute on function log_turn(date, jsonb, jsonb, jsonb) from public, anon, authenticated;
+grant execute on function log_turn(date, jsonb, jsonb, jsonb) to service_role;
+
+-- The backend may now remove foods (moving uses the existing update grant).
+grant delete on entries to service_role;

@@ -10,7 +10,7 @@ function fakeStore() {
     goals: { ...goals },
     async getGoals() { return { ...this.goals }; },
     async setGoals(g) { this.goals = { ...g }; },
-    async getEntries(day) { return day === '2026-11-07' ? [{ kcal: 100, protein: 5, carbs: 10, fat: 2 }] : []; },
+    async getEntries(day) { return day === '2026-11-07' ? [{ id: 7, food: 'Egg', qty: 1, kcal: 100, protein: 5, carbs: 10, fat: 2, fiber: 1, sugar: 0, sat_fat: 1, sodium: 70, cholesterol: 180, potassium: 60 }] : []; },
     async getMessages(day) { return day === '2026-11-07' ? [{ role: 'user', text: 'egg' }] : []; },
   };
 }
@@ -18,7 +18,11 @@ const is400 = (e) => e instanceof HttpError && e.status === 400;
 
 test('today: returns totals, goals, messages for the day', async () => {
   const { body } = await todayHandler({ query: { day: '2026-11-07' } }, fakeStore());
-  assert.deepEqual(body, { totals: { kcal: 100, protein: 5, carbs: 10, fat: 2 }, goals, messages: [{ role: 'user', text: 'egg' }] });
+  assert.deepEqual(body.totals, { kcal: 100, protein: 5, carbs: 10, fat: 2 });
+  assert.deepEqual(body.goals, goals);
+  assert.deepEqual(body.messages, [{ role: 'user', text: 'egg' }]);
+  assert.deepEqual(body.entries, [{ id: 7, food: 'Egg', qty: 1, kcal: 100 }]);
+  assert.deepEqual(body.nutrients, { fiber: 1, sugar: 0, sat_fat: 1, sodium: 70, cholesterol: 180, potassium: 60, partial: false });
 });
 test('today: empty day is zeros', async () => {
   const { body } = await todayHandler({ query: { day: '2026-11-08' } }, fakeStore());
