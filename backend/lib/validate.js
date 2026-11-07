@@ -36,7 +36,7 @@ export function validateClaudeResult(raw) {
     const r = validateItem(it);
     if (!r.ok) throw new Error(`item ${i}: ${r.error}`);
     return r.item;
-  });
+  }).filter((it) => it.kcal + it.protein + it.carbs + it.fat > 0); // all-zero rows add nothing but clutter
   // A bad goal change shouldn't throw away the food that came with it: drop just the goals.
   let goals = null;
   let goalsRejected = false;

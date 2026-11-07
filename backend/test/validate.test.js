@@ -46,3 +46,9 @@ test('result: invalid goals are dropped and flagged, not fatal', () => {
   assert.equal(r.goals, null);
   assert.equal(r.goalsRejected, true);
 });
+
+test('result: all-zero duplicate items are dropped (they add nothing to the totals)', () => {
+  const adobo = { food: 'Chicken adobo (1 serving)', qty: 1, kcal: 330, protein: 32, carbs: 6, fat: 20 };
+  const ghost = { food: 'Chicken adobo', qty: 1, kcal: 0, protein: 0, carbs: 0, fat: 0 };
+  assert.deepEqual(validateClaudeResult({ items: [adobo, ghost], reply: 'ok' }).items, [adobo]);
+});
