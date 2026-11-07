@@ -65,3 +65,9 @@ $$;
 
 -- Only the backend's service role may call it.
 revoke execute on function log_turn(date, jsonb, jsonb, jsonb) from public, anon, authenticated;
+
+-- New tables are not exposed automatically, so grant access to the backend's
+-- service role only. The public anon and authenticated roles get nothing.
+grant usage on schema public to service_role;
+grant select, insert, update on goals, entries, messages to service_role;
+grant execute on function log_turn(date, jsonb, jsonb, jsonb) to service_role;
