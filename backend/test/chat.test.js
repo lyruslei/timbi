@@ -4,144 +4,212 @@ import { handleChat, FAIL_REPLY } from '../lib/chat.js';
 import { HttpError } from '../lib/http.js';
 
 const egg = { food: 'Egg, large', qty: 2, kcal: 156, protein: 12.6, carbs: 1.2, fat: 10.6 };
+const NULLS = { fiber: null, sugar: null, sat_fat: null, sodium: null, cholesterol: null, potassium: null };
 const DEFAULT_GOALS = { kcal: 2200, protein: 150, carbs: 220, fat: 70 };
+const DAY = '2026-11-08';
+const YDAY = '2026-11-07';
+const blitz = { id: 7, name: 'Blitz bar vanilla', serving: '1 bar', kcal: 210, protein: 20, carbs: 6, fat: 7, ...NULLS };
 
+// In-memory store with the same contract as lib/store.js.
 function fakeStore() {
+  let nextId = 100;
   return {
     goals: { ...DEFAULT_GOALS },
-    entries: {},
+    entries: [],          // { id, day, created_at, ...item }
     messages: {},
-    async getGoals() { return { ...this.goals }; },
+    myFoods: [blitz],
     turns: 0,
-    async getEntries(day) { return [...(this.entries[day] ?? [])]; },
+    add(day, item) { const row = { id: nextId++, day, created_at: '2026-11-08T00:00:00Z', ...item }; this.entries.push(row); return row; },
+    on(day) { return this.entries.filter((e) => e.day === day); },
+    async getGoals() { return { ...this.goals }; },
+    async getEntries(day) { return this.on(day).map((e) => ({ ...e })); },
+    async getEntriesRange(from, to) { return this.entries.filter((e) => e.day >= from && e.day <= to); },
     async getMessages(day) { return [...(this.messages[day] ?? [])]; },
-    // One atomic write per chat turn (a single Postgres function in the real store).
-    async logTurn(day, { items, goals, messages }) {
+    async listMyFoods() { return this.myFoods; },
+    async logTurnV2({ logDay, msgDay, items, copyIds, removeIds, updates, goals, messages }) {
       this.turns += 1;
-      if (items.length) this.entries[day] = [...(this.entries[day] ?? []), ...items];
+      this.entries = this.entries.filter((e) => !removeIds.includes(e.id));
+      for (const u of updates) Object.assign(this.entries.find((e) => e.id === u.id), u);
+      for (const it of items) this.add(logDay, it);
+      for (const id of copyIds) { const { id: _, day: __, ...rest } = this.entries.find((e) => e.id === id); this.add(logDay, rest); }
       if (goals) this.goals = { ...goals };
-      this.messages[day] = [...(this.messages[day] ?? []), ...messages];
+      this.messages[msgDay] = [...(this.messages[msgDay] ?? []), ...messages];
     },
   };
 }
-const aiSays = (out) => async () => out;
+const aiSays = (out) => async () => ({ items: [], reply: 'ok', goals: null, ...out });
+const chat = (body, store, ai) => handleChat({ day: DAY, today: DAY, ...body }, { store, ai });
 
-test('logs items under the given day and returns new totals', async () => {
+test('logs items under the viewed day and returns new totals', async () => {
   const store = fakeStore();
-  const r = await handleChat({ text: '2 eggs', day: '2026-11-07' },
-    { store, ai: aiSays({ items: [egg], reply: 'Logged.' }) });
-  assert.deepEqual(store.entries['2026-11-07'], [{ ...egg, ...{ fiber: null, sugar: null, sat_fat: null, sodium: null, cholesterol: null, potassium: null } }]);
+  const r = await chat({ text: '2 eggs' }, store, aiSays({ items: [egg], reply: 'Logged.' }));
+  assert.deepEqual(store.on(DAY).map(({ id, day, created_at, ...i }) => i), [{ ...egg, ...NULLS }]);
   assert.equal(r.totals.kcal, 156);
-  assert.equal(r.reply, 'Logged.');
-  assert.deepEqual(r.goals, DEFAULT_GOALS);
-  assert.deepEqual(store.messages['2026-11-07'], [{ role: 'user', text: '2 eggs' }, { role: 'bot', text: 'Logged.' }]);
+  assert.equal(r.reply, 'Logged. (2,044 kcal left)');
+  assert.equal(r.failed, false);
+  assert.equal(r.logDay, DAY);
+  assert.deepEqual(store.messages[DAY], [{ role: 'user', text: '2 eggs' }, { role: 'bot', text: 'Logged. (2,044 kcal left)' }]);
 });
 
 test('day comes from the client, not server time', async () => {
   const store = fakeStore();
-  await handleChat({ text: 'late snack', day: '2026-11-06' },
-    { store, ai: aiSays({ items: [egg], reply: 'ok' }) });
-  assert.deepEqual(Object.keys(store.entries), ['2026-11-06']);
+  await chat({ text: 'late snack', day: '2026-11-06', today: DAY }, store, aiSays({ items: [egg] }));
+  assert.deepEqual([...new Set(store.entries.map((e) => e.day))], ['2026-11-06']);
 });
 
-test('totals include earlier entries of the same day', async () => {
+test('question: nothing logged, messages saved', async () => {
   const store = fakeStore();
-  store.entries['2026-11-07'] = [egg];
-  const r = await handleChat({ text: 'another', day: '2026-11-07' },
-    { store, ai: aiSays({ items: [egg], reply: 'ok' }) });
-  assert.equal(r.totals.kcal, 312);
-});
-
-test('question: empty items saves no entries but saves messages', async () => {
-  const store = fakeStore();
-  const r = await handleChat({ text: 'protein left?', day: '2026-11-07' },
-    { store, ai: aiSays({ items: [], reply: '150g left.' }) });
-  assert.equal(store.entries['2026-11-07'], undefined);
-  assert.equal(store.messages['2026-11-07'].length, 2);
+  const r = await chat({ text: 'protein left?' }, store, aiSays({ reply: '150g left.' }));
+  assert.equal(store.entries.length, 0);
+  assert.equal(store.messages[DAY].length, 2);
   assert.equal(r.reply, '150g left.');
 });
 
-test('invalid AI output: saves nothing, returns FAIL_REPLY', async () => {
+test('invalid AI output: saves nothing, returns FAIL_REPLY', async (t) => {
+  t.mock.method(console, 'error', () => {});
   const store = fakeStore();
-  const r = await handleChat({ text: '2 eggs', day: '2026-11-07' },
-    { store, ai: aiSays({ items: [{ ...egg, kcal: '156' }], reply: 'Logged.' }) });
+  const r = await chat({ text: '2 eggs' }, store, aiSays({ items: [{ ...egg, kcal: '156' }] }));
   assert.equal(r.reply, FAIL_REPLY);
-  assert.deepEqual(store.entries, {});
-  assert.deepEqual(store.messages, {});
-  assert.equal(r.totals.kcal, 0);
+  assert.equal(r.failed, true);
+  assert.equal(store.turns, 0);
 });
 
 test('AI call throws: saves nothing, returns FAIL_REPLY', async (t) => {
   t.mock.method(console, 'error', () => {});
   const store = fakeStore();
-  const r = await handleChat({ text: '2 eggs', day: '2026-11-07' },
-    { store, ai: async () => { throw new Error('network'); } });
-  assert.equal(r.reply, FAIL_REPLY);
-  assert.deepEqual(store.entries, {});
-  assert.deepEqual(store.messages, {});
+  const r = await chat({ text: '2 eggs' }, store, async () => { throw new Error('network'); });
+  assert.equal(r.failed, true);
+  assert.equal(store.turns, 0);
 });
 
 test('goals in result are saved and returned', async () => {
   const store = fakeStore();
   const goals = { ...DEFAULT_GOALS, protein: 160 };
-  const r = await handleChat({ text: 'set my protein to 160g', day: '2026-11-07' },
-    { store, ai: aiSays({ items: [], reply: 'Done.', goals }) });
+  const r = await chat({ text: 'set my protein to 160g' }, store, aiSays({ goals }));
   assert.deepEqual(store.goals, goals);
   assert.deepEqual(r.goals, goals);
 });
 
-const rejects400 = (p) => assert.rejects(p, (e) => e instanceof HttpError && e.status === 400);
-const neverCalled = async () => { throw new Error('should not be called'); };
-
-test('empty text → HttpError 400', () =>
-  rejects400(handleChat({ text: '   ', day: '2026-11-07' }, { store: fakeStore(), ai: neverCalled })));
-test('text over 1000 chars → HttpError 400', () =>
-  rejects400(handleChat({ text: 'a'.repeat(1001), day: '2026-11-07' }, { store: fakeStore(), ai: neverCalled })));
-test('bad day → HttpError 400', () =>
-  rejects400(handleChat({ text: 'egg', day: 'today' }, { store: fakeStore(), ai: neverCalled })));
-
-test('passes last 10 messages of the day as history, plus totals and goals', async () => {
-  const store = fakeStore();
-  store.messages['2026-11-07'] = Array.from({ length: 14 }, (_, i) => ({ role: i % 2 ? 'bot' : 'user', text: `m${i}` }));
-  store.entries['2026-11-07'] = [egg];
-  let args;
-  await handleChat({ text: 'hi', day: '2026-11-07' },
-    { store, ai: async (a) => { args = a; return { items: [], reply: 'hey' }; } });
-  assert.equal(args.text, 'hi');
-  assert.equal(args.history.length, 10);
-  assert.equal(args.history[0].text, 'm4');
-  assert.equal(args.totals.kcal, 156);
-  assert.deepEqual(args.goals, DEFAULT_GOALS);
-});
-
-test('failed turn is flagged so the client keeps the text', async (t) => {
-  t.mock.method(console, 'error', () => {});
-  const r = await handleChat({ text: '2 eggs', day: '2026-11-07' },
-    { store: fakeStore(), ai: aiSays({ items: 'nope', reply: 'x' }) });
-  assert.equal(r.failed, true);
-});
-
-test('successful turn is not flagged failed', async () => {
-  const r = await handleChat({ text: '2 eggs', day: '2026-11-07' },
-    { store: fakeStore(), ai: aiSays({ items: [egg], reply: 'ok' }) });
-  assert.equal(r.failed, false);
-});
-
-test('a turn saves entries, goals and messages in one write', async () => {
-  const store = fakeStore();
-  await handleChat({ text: 'eggs, and protein 160', day: '2026-11-07' },
-    { store, ai: aiSays({ items: [egg], reply: 'ok', goals: { ...DEFAULT_GOALS, protein: 160 } }) });
-  assert.equal(store.turns, 1);
-  assert.equal(store.goals.protein, 160);
-  assert.equal(store.entries['2026-11-07'].length, 1);
-});
-
 test('out-of-range goals are dropped; food still logs and the reply says why', async () => {
   const store = fakeStore();
-  const r = await handleChat({ text: 'egg, set calories to 400', day: '2026-11-07' },
-    { store, ai: aiSays({ items: [egg], reply: 'Logged.', goals: { ...DEFAULT_GOALS, kcal: 400 } }) });
-  assert.equal(r.failed, false);
+  const r = await chat({ text: 'egg, set calories to 400' }, store, aiSays({ items: [egg], reply: 'Logged.', goals: { ...DEFAULT_GOALS, kcal: 400 } }));
   assert.deepEqual(store.goals, DEFAULT_GOALS);
-  assert.equal(store.entries['2026-11-07'].length, 1);
+  assert.equal(store.on(DAY).length, 1);
   assert.match(r.reply, /^Logged\. .*goal/);
+});
+
+const rejects400 = (p) => assert.rejects(p, (e) => e instanceof HttpError && e.status === 400);
+const neverCalled = async () => { throw new Error('should not be called'); };
+test('empty text without a photo → 400', () => rejects400(chat({ text: '   ' }, fakeStore(), neverCalled)));
+test('text over 1000 chars → 400', () => rejects400(chat({ text: 'a'.repeat(1001) }, fakeStore(), neverCalled)));
+test('bad day or today → 400', async () => {
+  await rejects400(chat({ text: 'egg', day: 'today' }, fakeStore(), neverCalled));
+  await rejects400(chat({ text: 'egg', today: 'nope' }, fakeStore(), neverCalled));
+});
+test('viewed day after today → 400', () => rejects400(chat({ text: 'egg', day: '2026-11-09' }, fakeStore(), neverCalled)));
+
+test('sends history, totals, goals, both days of foods and matching saved foods', async () => {
+  const store = fakeStore();
+  store.messages[DAY] = Array.from({ length: 14 }, (_, i) => ({ role: i % 2 ? 'bot' : 'user', text: `m${i}` }));
+  const a = store.add(DAY, { ...egg, ...NULLS });
+  const b = store.add(YDAY, { food: 'Toast', qty: 1, kcal: 80, protein: 3, carbs: 15, fat: 1, ...NULLS });
+  let args;
+  await chat({ text: 'a blitz bar' }, store, async (x) => { args = x; return { items: [], reply: 'hi', goals: null }; });
+  assert.equal(args.history.length, 10);
+  assert.equal(args.totals.kcal, 156);
+  assert.deepEqual(args.entries.viewed.map((e) => e.id), [a.id]);
+  assert.deepEqual(args.entries.previous.map((e) => e.id), [b.id]);
+  assert.deepEqual(args.myFoods.map((f) => f.id), [7]);
+  assert.equal(args.week, null);
+});
+
+test('weekly data only for week questions', async () => {
+  const store = fakeStore();
+  let args;
+  const spy = async (x) => { args = x; return { items: [], reply: 'ok', goals: null }; };
+  await chat({ text: 'how did I do this week?' }, store, spy);
+  assert.equal(args.week.length, 7);
+  await chat({ text: '2 eggs' }, store, spy);
+  assert.equal(args.week, null);
+});
+
+test('saved food logs exact numbers × servings', async () => {
+  const store = fakeStore();
+  const r = await chat({ text: '2 blitz bars' }, store, aiSays({ saved: [{ id: 7, servings: 2 }] }));
+  const [row] = store.on(DAY);
+  assert.equal(row.kcal, 420);
+  assert.equal(row.food, 'Blitz bar vanilla, 2 × 1 bar');
+  assert.equal(r.totals.kcal, 420);
+});
+
+test('saved food not offered to the AI → refused, nothing written', async (t) => {
+  t.mock.method(console, 'error', () => {});
+  const store = fakeStore();
+  const r = await chat({ text: '2 eggs' }, store, aiSays({ saved: [{ id: 7, servings: 1 }] }));
+  assert.equal(r.failed, true);
+  assert.equal(store.turns, 0);
+});
+
+test('correction updates the right food; removal deletes it', async () => {
+  const store = fakeStore();
+  const eggs = store.add(DAY, { ...egg, ...NULLS });
+  const coke = store.add(DAY, { food: 'Coke', qty: 1, kcal: 140, protein: 0, carbs: 39, fat: 0, ...NULLS });
+  const r = await chat({ text: 'it was 3 eggs, and remove the coke' }, store, aiSays({
+    edits: [{ id: eggs.id, remove: false, item: { ...egg, qty: 3, kcal: 234, protein: 18.9, carbs: 1.8, fat: 15.9 } }, { id: coke.id, remove: true }],
+  }));
+  assert.deepEqual(store.on(DAY).map((e) => [e.food, e.qty, e.kcal]), [['Egg, large', 3, 234]]);
+  assert.equal(r.totals.kcal, 234);
+});
+
+test('"yesterday I had…" logs to yesterday; chat stays on the viewed day', async () => {
+  const store = fakeStore();
+  const r = await chat({ text: 'yesterday I had 2 eggs' }, store, aiSays({ items: [egg], log_day: YDAY }));
+  assert.equal(store.on(YDAY).length, 1);
+  assert.equal(store.on(DAY).length, 0);
+  assert.equal(store.messages[DAY].length, 2);
+  assert.equal(r.logDay, YDAY);
+  assert.equal(r.totals.kcal, 0); // totals are for the viewed day
+});
+
+test('"same breakfast as yesterday" copies exact rows', async () => {
+  const store = fakeStore();
+  const toast = store.add(YDAY, { food: 'Toast', qty: 1, kcal: 80, protein: 3, carbs: 15, fat: 1, ...NULLS });
+  await chat({ text: 'same breakfast as yesterday' }, store, aiSays({ copies: [toast.id] }));
+  assert.deepEqual(store.on(DAY).map((e) => [e.food, e.kcal]), [['Toast', 80]]);
+});
+
+test('label photo: food logged and a save offer returned (not saved)', async () => {
+  const store = fakeStore();
+  const label = { name: 'Choco bar', serving: '1 bar', kcal: 200, protein: 20, carbs: 10, fat: 6 };
+  const r = await chat({ text: 'this is choco bar', image: { media_type: 'image/jpeg', data: 'AAAA' } }, store,
+    aiSays({ items: [{ food: 'Choco bar, 1 bar', qty: 1, kcal: 200, protein: 20, carbs: 10, fat: 6 }], label }));
+  assert.equal(r.saveOffer.name, 'Choco bar');
+  assert.equal(store.myFoods.length, 1); // only the original blitz bar
+  assert.equal(store.on(DAY).length, 1);
+  assert.equal(store.messages[DAY][0].text, 'this is choco bar 📷');
+});
+
+test('photo with no text is allowed and passed to the AI', async () => {
+  const store = fakeStore();
+  let args;
+  await chat({ text: '', image: { media_type: 'image/png', data: 'AAAA' } }, store, async (x) => { args = x; return { items: [], reply: 'ok', goals: null }; });
+  assert.equal(args.image.media_type, 'image/png');
+  assert.equal(store.messages[DAY][0].text, '📷');
+});
+
+test('calories left are added from the database, not the AI', async () => {
+  const store = fakeStore();
+  const r = await chat({ text: '2 eggs' }, store, aiSays({ items: [egg], reply: 'Logged 2 eggs.' }));
+  assert.equal(r.reply, 'Logged 2 eggs. (2,044 kcal left)');
+});
+test('over the goal says how much over', async () => {
+  const store = fakeStore();
+  store.goals.kcal = 100;
+  const r = await chat({ text: '2 eggs' }, store, aiSays({ items: [egg], reply: 'Logged.' }));
+  assert.equal(r.reply, 'Logged. (56 kcal over)');
+});
+test('no calories note for questions or food logged to another day', async () => {
+  const store = fakeStore();
+  assert.equal((await chat({ text: 'hi' }, store, aiSays({ reply: 'Hello!' }))).reply, 'Hello!');
+  assert.equal((await chat({ text: 'yesterday 2 eggs' }, store, aiSays({ items: [egg], log_day: YDAY, reply: 'Logged to yesterday.' }))).reply, 'Logged to yesterday.');
 });

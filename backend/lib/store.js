@@ -23,8 +23,19 @@ export function createStore(supabase) {
     },
     async getEntries(day) {
       return must(await supabase.from('entries')
-        .select('id, food, qty, kcal, protein, carbs, fat, fiber, sugar, sat_fat, sodium, cholesterol, potassium')
+        .select('id, food, qty, kcal, protein, carbs, fat, fiber, sugar, sat_fat, sodium, cholesterol, potassium, created_at')
         .eq('day', day).order('created_at').order('id'));
+    },
+    async getEntriesRange(fromDay, toDay) {
+      return must(await supabase.from('entries').select('day, kcal, protein, carbs, fat')
+        .gte('day', fromDay).lte('day', toDay).limit(5000));
+    },
+    // One transaction: see log_turn_v2 in supabase/schema.sql.
+    async logTurnV2({ logDay, msgDay, items, copyIds, removeIds, updates, goals, messages }) {
+      must(await supabase.rpc('log_turn_v2', {
+        p_log_day: logDay, p_msg_day: msgDay, p_items: items, p_copy_ids: copyIds,
+        p_remove_ids: removeIds, p_updates: updates, p_goals: goals, p_messages: messages,
+      }));
     },
     async moveEntries(ids, day) {
       return must(await supabase.from('entries').update({ day }).in('id', ids).select('id')).length;

@@ -64,3 +64,46 @@ test('asks for low effort so replies come back quickly', async () => {
   await askClaude(args, { client, model: 'm' });
   assert.equal(client.calls[0].output_config.effort, 'low');
 });
+
+// ---- v2: context, image, new reply fields ----
+const v2 = {
+  ...args,
+  day: '2026-11-08', today: '2026-11-08',
+  entries: { viewed: [{ id: 11, time: '08:10', food: 'Eggs', qty: 2, kcal: 156, protein: 12.6, carbs: 1.2, fat: 10.6 }], previous: [{ id: 5, time: '07:55', food: 'Toast', qty: 1, kcal: 80, protein: 3, carbs: 15, fat: 1 }] },
+  myFoods: [{ id: 7, name: 'Blitz bar vanilla', serving: '1 bar', kcal: 210, protein: 20, carbs: 6, fat: 7 }],
+  week: null,
+};
+
+test('context lists both days of foods with ids, and saved foods with ids', async () => {
+  const client = fakeClient(ok(out));
+  await askClaude(v2, { client, model: 'm' });
+  const last = client.calls[0].messages.at(-1).content;
+  for (const s of ['"id":11', '"id":5', '"id":7', 'Blitz bar vanilla', '2026-11-08']) assert.ok(last.includes(s), s);
+});
+
+test('week totals included only when given', async () => {
+  const client = fakeClient(ok(out));
+  await askClaude({ ...v2, week: [{ day: '2026-11-02', kcal: 2000, protein: 120, carbs: 200, fat: 60 }] }, { client, model: 'm' });
+  assert.match(client.calls[0].messages.at(-1).content, /Last 7 days/);
+  await askClaude(v2, { client, model: 'm' });
+  assert.doesNotMatch(client.calls[1].messages.at(-1).content, /Last 7 days/);
+});
+
+test('a photo goes first, as an image block, then the text', async () => {
+  const client = fakeClient(ok(out));
+  await askClaude({ ...v2, image: { media_type: 'image/jpeg', data: 'QUJD' } }, { client, model: 'm' });
+  const content = client.calls[0].messages.at(-1).content;
+  assert.deepEqual(content[0], { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: 'QUJD' } });
+  assert.equal(content[1].type, 'text');
+  assert.match(content[1].text, /egg/);
+});
+
+test('reply schema asks for saved, edits, copies, log_day and label', async () => {
+  const client = fakeClient(ok(out));
+  await askClaude(v2, { client, model: 'm' });
+  const schema = client.calls[0].output_config.format.schema;
+  for (const k of ['items', 'reply', 'goals', 'saved', 'edits', 'copies', 'log_day', 'label']) {
+    assert.ok(schema.required.includes(k), k);
+    assert.ok(schema.properties[k], k);
+  }
+});
