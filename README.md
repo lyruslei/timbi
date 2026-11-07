@@ -18,7 +18,7 @@ A personal food tracker you use by chatting. Type what you ate ("2 eggs and a sl
    - `TOKEN_SECRET` — long random string, e.g. `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`
    - `FRONTEND_ORIGIN` — the frontend's exact URL, no trailing slash
    - `CLAUDE_MODEL` — optional, defaults to `claude-haiku-5-5`
-3. **Frontend.** Set `BACKEND_URL` in `frontend/config.js` to the backend's URL.
+3. **Frontend.** `frontend/config.js` uses `http://localhost:3001` on this computer and the deployed backend (`https://timbi-backend.vercel.app`) everywhere else.
 
 ## Run locally
 
