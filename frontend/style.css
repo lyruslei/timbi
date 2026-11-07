@@ -200,7 +200,7 @@ input::placeholder { color: var(--gray); }
   aspect-ratio: 1;
   margin: 0 auto;
 }
-.kcal .chart-box { width: min(62vw, 26dvh, 300px); }
+.kcal .chart-box { width: min(62vw, 26dvh, 300px); container-type: inline-size; }
 .macros {
   display: grid;
   grid-template-columns: auto 1fr;
@@ -232,13 +232,13 @@ input::placeholder { color: var(--gray); }
 .big {
   color: var(--lime);
   font-weight: 700;
-  font-size: clamp(2.4rem, 11vw, 3.6rem);
+  font-size: 21cqi; /* scales with the ring, so it always fits inside */
   line-height: 1;
   letter-spacing: -0.02em;
   font-variant-numeric: tabular-nums;
 }
 .kcal.over .big { color: var(--white); }
-.ring-center .muted { font-size: 0.9rem; margin-top: 0.35rem; }
+.ring-center .muted { font-size: clamp(0.75rem, 6.5cqi, 1rem); margin-top: 0.35rem; }
 
 .chart figcaption {
   text-align: center;
