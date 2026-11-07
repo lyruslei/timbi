@@ -10,7 +10,13 @@ test('rejects string numbers', () => assert.equal(validateItem({ ...egg, kcal: '
 test('rejects negative', () => assert.equal(validateItem({ ...egg, fat: -1 }).ok, false));
 test('rejects NaN', () => assert.equal(validateItem({ ...egg, protein: NaN }).ok, false));
 test('rejects kcal > 5000', () => assert.equal(validateItem({ ...egg, kcal: 5001 }).ok, false));
-test('rejects qty 0', () => assert.equal(validateItem({ ...egg, qty: 0 }).ok, false));
+test('qty 0 or missing becomes 1 instead of failing', () => {
+  assert.equal(validateItem({ ...egg, qty: 0 }).item.qty, 1);
+  const { qty, ...noQty } = egg;
+  assert.equal(validateItem(noQty).item.qty, 1);
+});
+test('a weight given as qty (200 for 200g) is accepted', () => assert.equal(validateItem({ ...egg, qty: 200 }).ok, true));
+test('rejects absurd qty', () => assert.equal(validateItem({ ...egg, qty: 100000 }).ok, false));
 test('rejects macros way over kcal', () =>
   assert.equal(validateItem({ ...egg, kcal: 10, protein: 50 }).ok, false));
 test('rejects empty food name', () => assert.equal(validateItem({ ...egg, food: ' ' }).ok, false));
@@ -20,7 +26,7 @@ test('result: empty items is fine for questions', () =>
   assert.deepEqual(validateClaudeResult({ items: [], reply: 'You have 40g left.' }),
     { items: [], reply: 'You have 40g left.', goals: null, goalsRejected: false }));
 test('result: one bad item throws', () =>
-  assert.throws(() => validateClaudeResult({ items: [egg, { ...egg, qty: 0 }], reply: 'x' })));
+  assert.throws(() => validateClaudeResult({ items: [egg, { ...egg, kcal: -5 }], reply: 'x' })));
 test('result: missing reply throws', () => assert.throws(() => validateClaudeResult({ items: [] })));
 test('result: items not an array throws', () => assert.throws(() => validateClaudeResult({ items: 'egg', reply: 'x' })));
 test('result: goals passed through when valid', () => {

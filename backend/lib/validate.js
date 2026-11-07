@@ -8,14 +8,17 @@ export function validateItem(item) {
   if (!item || typeof item !== 'object') return { ok: false, error: 'item is not an object' };
   const food = typeof item.food === 'string' ? item.food.trim() : '';
   if (food.length < 1 || food.length > 100) return { ok: false, error: 'bad food name' };
-  if (!isNum(item.qty) || item.qty <= 0 || item.qty > 100) return { ok: false, error: 'bad qty' };
+  // qty is only a label (calories and macros are what count), so be lenient:
+  // missing or zero becomes 1; a weight like 200 (for 200g) is fine.
+  const qty = isNum(item.qty) && item.qty > 0 ? item.qty : 1;
+  if (qty > 10000) return { ok: false, error: 'bad qty' };
   if (!inRange(item.kcal, 0, 5000)) return { ok: false, error: 'bad kcal' };
   for (const m of MACROS) {
     if (!inRange(item[m], 0, 500)) return { ok: false, error: `bad ${m}` };
   }
   const macroKcal = 4 * item.protein + 4 * item.carbs + 9 * item.fat;
   if (macroKcal > item.kcal * 1.5 + 50) return { ok: false, error: 'macros do not match kcal' };
-  const { qty, kcal, protein, carbs, fat } = item;
+  const { kcal, protein, carbs, fat } = item;
   return { ok: true, item: { food, qty, kcal, protein, carbs, fat } };
 }
 

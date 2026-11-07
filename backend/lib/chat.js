@@ -20,11 +20,12 @@ export async function handleChat({ text, day } = {}, { ai, store }) {
   const totals = sumTotals(entries);
 
   let result;
+  let raw;
   try {
-    const raw = await ai({ text: clean, history: messages.slice(-HISTORY), totals, goals });
+    raw = await ai({ text: clean, history: messages.slice(-HISTORY), totals, goals });
     result = validateClaudeResult(raw);
   } catch (err) {
-    console.error('chat failed:', err);
+    console.error('chat failed:', err?.message ?? err, raw === undefined ? '' : JSON.stringify(raw).slice(0, 1500));
     return { reply: FAIL_REPLY, totals, goals, failed: true };
   }
 
