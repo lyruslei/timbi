@@ -4,6 +4,7 @@ dist
 .env
 
 # Ignore the output video from Git but not videos you import into src/.
-out
+out/*
+!out/timbi-showcase-1080p.mp4
 whisper.cpp/
 .media/
