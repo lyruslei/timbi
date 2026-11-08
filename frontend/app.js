@@ -3,6 +3,7 @@ import { localDay, ringData, macroSplit } from './lib/format.js';
 import { addDays, dayLabel, isFuture, monthGrid, monthTitle } from './lib/days.js';
 import { nutrientRows, macroRows } from './lib/nutrition.js';
 import { shrinkImage } from './lib/image.js';
+import * as cache from './lib/cache.js';
 
 const $ = (id) => document.getElementById(id);
 const css = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
@@ -37,6 +38,7 @@ window.addEventListener('bitelog:logout', () => {
   for (const d of document.querySelectorAll('dialog')) if (d.open) d.close();
   $('details-view').hidden = true;
   $('myfoods-view').hidden = true;
+  cache.clearCache();
   showLogin();
 });
 
@@ -132,14 +134,22 @@ async function selectDay(day) {
   await loadDay(day);
 }
 
+function renderDay(data) {
+  $('chat-log').replaceChildren();
+  if (data.messages.length) data.messages.forEach((m) => addMessage(m.role, m.text));
+  else showEmptyChat();
+  renderTotals(data.totals, data.goals);
+}
+
 async function loadDay(day) {
+  // Draw the last copy we saw right away; the fresh one replaces it when it lands.
+  const cached = cache.readDay(day);
+  if (cached) renderDay(cached);
   try {
     const data = await api(`/api/today?day=${day}`);
     if (day !== selectedDay) return; // user switched days while this was loading
-    $('chat-log').replaceChildren();
-    if (data.messages.length) data.messages.forEach((m) => addMessage(m.role, m.text));
-    else showEmptyChat();
-    renderTotals(data.totals, data.goals);
+    cache.writeDay(day, data);
+    renderDay(data);
   } catch (ex) {
     if (ex.status !== 401) addMessage('bot', "Couldn't load this day's log. Check your connection and try again.", 'failed');
   }
@@ -285,12 +295,20 @@ $('photo-input').addEventListener('change', async () => {
 
 // ---------- Streak ----------
 
+function renderStreak(streak) {
+  $('streak').hidden = !(streak > 0);
+  $('streak-n').textContent = String(streak);
+  $('streak').setAttribute('aria-label', `${streak} day streak`);
+}
+
 async function refreshStreak() {
+  const day = today();
+  const cached = cache.readStreak(day);
+  if (cached !== null) renderStreak(cached);
   try {
-    const { streak } = await api(`/api/streak?today=${today()}`);
-    $('streak').hidden = !(streak > 0);
-    $('streak-n').textContent = String(streak);
-    $('streak').setAttribute('aria-label', `${streak} day streak`);
+    const { streak } = await api(`/api/streak?today=${day}`);
+    cache.writeStreak(day, streak);
+    renderStreak(streak);
   } catch { /* the streak is a nicety; never block the app on it */ }
 }
 
@@ -372,6 +390,7 @@ $('chat-form').addEventListener('submit', async (e) => {
       }
       addMessage('bot', data.reply);
       renderTotals(data.totals, data.goals);
+      cache.patchDay(day, { user: image ? (text ? `${text} 📷` : '📷') : text, reply: data.reply, totals: data.totals, goals: data.goals });
       if (data.saveOffer) showSaveOffer(data.saveOffer);
       input.value = '';
       clearPhoto();
