@@ -14,6 +14,9 @@ export const PHOTO_FAIL_REPLY = "Couldn't read that photo. Try a clearer, closer
 export const GOALS_REJECTED_NOTE = "I didn't change your goals: calories must be 500–10,000 and each macro 0–1,000g.";
 const MAX_TEXT = 1000;
 const HISTORY = 10;
+// Up to this many saved foods, send them all and let the AI match names (it copes with
+// typos like "promatrx" or "bliz bar"). Past it, send only word matches to keep requests small.
+const SEND_ALL_SAVED = 30;
 const PHOTO = '📷';
 const fmt = (n) => Math.round(n).toLocaleString('en-US');
 
@@ -54,7 +57,7 @@ export async function handleChat({ text, day, today, image = null, tz = 0 } = {}
     week ? store.getEntriesRange(addDays(now, -6), now) : Promise.resolve(null),
   ]);
   const totals = sumTotals(viewed);
-  const myFoods = matchMyFoods(clean, savedFoods);
+  const myFoods = savedFoods.length <= SEND_ALL_SAVED ? savedFoods : matchMyFoods(clean, savedFoods);
   const entries = { viewed: describeEntries(viewed, tzOffset), previous: describeEntries(previous, tzOffset) };
 
   let raw;

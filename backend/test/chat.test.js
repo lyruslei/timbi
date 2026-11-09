@@ -110,7 +110,7 @@ test('bad day or today → 400', async () => {
 });
 test('viewed day after today → 400', () => rejects400(chat({ text: 'egg', day: '2026-11-09' }, fakeStore(), neverCalled)));
 
-test('sends history, totals, goals, both days of foods and matching saved foods', async () => {
+test('sends history, totals, goals, both days of foods and all saved foods when there are few', async () => {
   const store = fakeStore();
   store.messages[DAY] = Array.from({ length: 14 }, (_, i) => ({ role: i % 2 ? 'bot' : 'user', text: `m${i}` }));
   const a = store.add(DAY, { ...egg, ...NULLS });
@@ -147,7 +147,7 @@ test('saved food logs exact numbers × servings', async () => {
 test('saved food not offered to the AI → refused, nothing written', async (t) => {
   t.mock.method(console, 'error', () => {});
   const store = fakeStore();
-  const r = await chat({ text: '2 eggs' }, store, aiSays({ saved: [{ id: 7, servings: 1 }] }));
+  const r = await chat({ text: '2 eggs' }, store, aiSays({ saved: [{ id: 999, servings: 1 }] })); // not a saved food
   assert.equal(r.failed, true);
   assert.equal(store.turns, 0);
 });
@@ -254,4 +254,12 @@ test('editing only yesterday\'s food adds no calories note for today', async () 
   const r = await chat({ text: "yesterday's rice was 300g" }, store,
     aiSays({ edits: [{ id: rice.id, remove: false, item: { food: 'Rice, 300g', qty: 1, kcal: 390, protein: 8, carbs: 86, fat: 0.8 } }], reply: 'Updated yesterday\'s rice.' }));
   assert.equal(r.reply, "Updated yesterday's rice.");
+});
+
+test('with many saved foods, sends only the ones whose name matches', async () => {
+  const store = fakeStore();
+  store.myFoods = [...store.myFoods, ...Array.from({ length: 30 }, (_, i) => ({ ...store.myFoods[0], id: 100 + i, name: `Food ${i}` }))];
+  let args;
+  await chat({ text: 'a blitz bar' }, store, async (x) => { args = x; return { items: [], reply: 'hi', goals: null }; });
+  assert.deepEqual(args.myFoods.map((f) => f.id), [7]);
 });
