@@ -128,6 +128,7 @@ function renderDayHeader() {
 }
 
 async function selectDay(day) {
+  if (day !== selectedDay) window.scrollTo(0, 0); // a new day opens at its charts
   selectedDay = day;
   followToday = day === today();
   renderDayHeader();
@@ -136,7 +137,7 @@ async function selectDay(day) {
 
 function renderDay(data) {
   $('chat-log').replaceChildren();
-  if (data.messages.length) data.messages.forEach((m) => addMessage(m.role, m.text));
+  if (data.messages.length) data.messages.forEach((m) => addMessage(m.role, m.text, '', false));
   else showEmptyChat();
   renderTotals(data.totals, data.goals);
 }
@@ -238,21 +239,20 @@ $('day-cancel').addEventListener('click', () => dayDialog.close());
 
 // ---------- Chat ----------
 
-function addMessage(role, text, extra = '') {
+function addMessage(role, text, extra = '', scroll = true) {
   const log = $('chat-log');
   log.querySelector('.chat-empty')?.remove();
   const el = document.createElement('p');
   el.className = `msg ${role} ${extra}`.trim();
   el.textContent = text;
   log.append(el);
-  scrollToLatest();
+  if (scroll) scrollToLatest();
   return el;
 }
 
-// Keep the chat box scrolled to the newest message.
+// Bring the newest message into view, just above the typing box.
 function scrollToLatest() {
-  const log = $('chat-log');
-  log.scrollTop = log.scrollHeight;
+  window.scrollTo(0, document.documentElement.scrollHeight);
 }
 
 function showEmptyChat() {

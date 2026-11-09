@@ -112,7 +112,6 @@ input:focus, input:focus-visible { outline: none; }
 /* Main screen fits the screen: big charts on top, a short chat box, input at the bottom. */
 .app {
   min-height: 100dvh;
-  height: 100dvh;
   max-width: 640px;
   margin: 0 auto;
   display: flex;
@@ -172,7 +171,7 @@ input:focus, input:focus-visible { outline: none; }
 }
 .summary {
   position: relative;
-  flex: 1 0 auto; /* grows to fill, never shrinks under the charts */
+  flex: none;
   display: flex;
   flex-direction: column;
   padding: 1rem;
@@ -189,12 +188,9 @@ input:focus, input:focus-visible { outline: none; }
 }
 /* Phone: big calorie ring on top; macro pie and legend side by side below. */
 .charts {
-  flex: 1;
-  min-height: 0;
   display: grid;
   grid-template-columns: 1fr;
-  align-content: space-evenly;
-  gap: 0.75rem;
+  gap: 1rem;
 }
 .chart { margin: 0; min-width: 0; }
 .chart-box {
@@ -202,7 +198,7 @@ input:focus, input:focus-visible { outline: none; }
   aspect-ratio: 1;
   margin: 0 auto;
 }
-.kcal .chart-box { width: min(62vw, 26dvh, 300px); container-type: inline-size; }
+.kcal .chart-box { width: min(62vw, 300px); container-type: inline-size; }
 .macros {
   display: grid;
   grid-template-columns: auto 1fr;
@@ -210,7 +206,7 @@ input:focus, input:focus-visible { outline: none; }
   gap: 1.25rem;
   justify-content: center;
 }
-.macros .chart-box { width: min(34vw, 15dvh, 190px); }
+.macros .chart-box { width: min(34vw, 190px); }
 .macros figcaption { margin: 0; text-align: left; }
 .macros .legend { margin: 0; font-size: 1.05rem; gap: 0.35rem; }
 
@@ -267,12 +263,10 @@ input:focus, input:focus-visible { outline: none; }
 .dot.fat { background: var(--lime-pale); }
 
 /* Chat: tall enough for about your last message and the reply; scroll up for older. */
+/* The whole home screen is one page that scrolls; the chat is never a box of its own. */
 .chat-log {
-  flex: none;
-  height: clamp(9.5rem, 25dvh, 16rem);
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  padding: 0.75rem 0 0.25rem;
+  flex: 1 0 auto;
+  padding: 1rem 0 0.75rem;
   display: flex;
   flex-direction: column;
   gap: 0.6rem;
@@ -291,6 +285,13 @@ input:focus, input:focus-visible { outline: none; }
 .msg.failed { color: var(--gray); font-style: italic; }
 .chat-empty { color: var(--gray); margin: auto 0 0; max-width: 34ch; }
 
+/* Photo chip + typing box stay pinned to the bottom while the page scrolls. */
+.dock {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  background: var(--black);
+}
 .composer {
   display: flex;
   gap: 0.5rem;
