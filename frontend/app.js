@@ -301,7 +301,9 @@ const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 let recognizer = null;
 
 function stopListening() {
-  if (recognizer) recognizer.stop();
+  if (!recognizer) return;
+  recognizer.stoppedByUser = true;
+  recognizer.stop();
 }
 
 {
@@ -320,7 +322,10 @@ function stopListening() {
     r.lang = navigator.language || 'en-US';
     r.interimResults = true;
     r.continuous = false;
+    let heard = false;
+    let explained = false;
     r.onresult = (e) => {
+      heard = true;
       const said = Array.from(e.results, (res) => res[0].transcript).join('').trim();
       input.value = before ? `${before} ${said}` : said;
     };
@@ -332,9 +337,16 @@ function stopListening() {
         'no-speech': "Didn't catch that. Tap the mic and start talking.",
         network: 'Voice needs an internet connection. Try again, or type instead.',
       }[e.error];
-      if (why) addMessage('bot', why, 'failed');
+      if (why) {
+        explained = true;
+        addMessage('bot', why, 'failed');
+      }
     };
     r.onend = () => {
+      // Some phones (notably iPhone home-screen apps) stop at once without any error.
+      if (!heard && !explained && !r.stoppedByUser) {
+        addMessage('bot', "Voice stopped before hearing anything. If timbi is on your home screen, open it in Safari or Chrome instead, or tap the mic on your keyboard.", 'failed');
+      }
       recognizer = null;
       mic.classList.remove('listening');
       mic.setAttribute('aria-pressed', 'false');
