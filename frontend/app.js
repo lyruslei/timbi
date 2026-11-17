@@ -295,7 +295,7 @@ $('photo-input').addEventListener('change', async () => {
 
 // ---------- Voice ----------
 // Browser speech-to-text: the words land in the box, you check them and hit Send.
-// Free (no API call); the button stays hidden where the browser can't do it.
+// Free (no API call); where the browser can't do it, the button says so.
 
 const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 let recognizer = null;
@@ -304,10 +304,15 @@ function stopListening() {
   if (recognizer) recognizer.stop();
 }
 
-if (Recognition) {
+{
   const mic = $('mic-button');
   mic.hidden = false;
   mic.addEventListener('click', () => {
+    if (!Recognition) {
+      addMessage('bot', "Voice doesn't work in this browser. Try Chrome or Safari, or tap the mic on your keyboard.", 'failed');
+      $('chat-input').focus();
+      return;
+    }
     if (recognizer) return stopListening();
     const input = $('chat-input');
     const before = input.value.trim();
