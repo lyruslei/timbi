@@ -325,9 +325,14 @@ function stopListening() {
       input.value = before ? `${before} ${said}` : said;
     };
     r.onerror = (e) => {
-      if (e.error === 'not-allowed' || e.error === 'service-not-allowed') {
-        addMessage('bot', 'Microphone is blocked. Allow it in your browser settings, or type instead.', 'failed');
-      }
+      const why = {
+        'not-allowed': 'Microphone is blocked. Allow it in your browser settings, or type instead.',
+        'service-not-allowed': 'Voice is turned off for this browser. Allow it in settings, or type instead.',
+        'audio-capture': "Couldn't hear anything. Check your microphone is plugged in and working.",
+        'no-speech': "Didn't catch that. Tap the mic and start talking.",
+        network: 'Voice needs an internet connection. Try again, or type instead.',
+      }[e.error];
+      if (why) addMessage('bot', why, 'failed');
     };
     r.onend = () => {
       recognizer = null;
