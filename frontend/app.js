@@ -293,6 +293,54 @@ $('photo-input').addEventListener('change', async () => {
   }
 });
 
+// ---------- Voice ----------
+// Browser speech-to-text: the words land in the box, you check them and hit Send.
+// Free (no API call); the button stays hidden where the browser can't do it.
+
+const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+let recognizer = null;
+
+function stopListening() {
+  if (recognizer) recognizer.stop();
+}
+
+if (Recognition) {
+  const mic = $('mic-button');
+  mic.hidden = false;
+  mic.addEventListener('click', () => {
+    if (recognizer) return stopListening();
+    const input = $('chat-input');
+    const before = input.value.trim();
+    const r = new Recognition();
+    r.lang = navigator.language || 'en-US';
+    r.interimResults = true;
+    r.continuous = false;
+    r.onresult = (e) => {
+      const said = Array.from(e.results, (res) => res[0].transcript).join('').trim();
+      input.value = before ? `${before} ${said}` : said;
+    };
+    r.onerror = (e) => {
+      if (e.error === 'not-allowed' || e.error === 'service-not-allowed') {
+        addMessage('bot', 'Microphone is blocked. Allow it in your browser settings, or type instead.', 'failed');
+      }
+    };
+    r.onend = () => {
+      recognizer = null;
+      mic.classList.remove('listening');
+      mic.setAttribute('aria-pressed', 'false');
+      input.focus();
+    };
+    recognizer = r;
+    mic.classList.add('listening');
+    mic.setAttribute('aria-pressed', 'true');
+    try {
+      r.start();
+    } catch {
+      r.onend();
+    }
+  });
+}
+
 // ---------- Streak ----------
 
 function renderStreak(streak) {
@@ -356,6 +404,7 @@ $('chat-form').addEventListener('submit', async (e) => {
   const input = $('chat-input');
   const send = $('send-button');
   const text = input.value.trim();
+  stopListening();
   if ((!text && !pendingPhoto) || sending) return;
   sending = true;
   send.disabled = true;
