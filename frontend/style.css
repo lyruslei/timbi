@@ -321,13 +321,6 @@ input:focus, input:focus-visible { outline: none; }
   background: var(--card);
   color: var(--white);
 }
-.mic-button.listening {
-  background: var(--lime);
-  color: var(--black);
-  animation: mic-pulse 1.2s ease-in-out infinite;
-}
-@keyframes mic-pulse { 50% { opacity: 0.65; } }
-@media (prefers-reduced-motion: reduce) { .mic-button.listening { animation: none; } }
 .photo-chip {
   display: flex;
   align-items: center;

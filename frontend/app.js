@@ -293,76 +293,6 @@ $('photo-input').addEventListener('change', async () => {
   }
 });
 
-// ---------- Voice ----------
-// Browser speech-to-text: the words land in the box, you check them and hit Send.
-// Free (no API call); where the browser can't do it, the button says so.
-
-const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-let recognizer = null;
-
-function stopListening() {
-  if (!recognizer) return;
-  recognizer.stoppedByUser = true;
-  recognizer.stop();
-}
-
-{
-  const mic = $('mic-button');
-  mic.hidden = false;
-  mic.addEventListener('click', () => {
-    if (!Recognition) {
-      addMessage('bot', "Voice doesn't work in this browser. Try Chrome or Safari, or tap the mic on your keyboard.", 'failed');
-      $('chat-input').focus();
-      return;
-    }
-    if (recognizer) return stopListening();
-    const input = $('chat-input');
-    const before = input.value.trim();
-    const r = new Recognition();
-    r.lang = navigator.language || 'en-US';
-    r.interimResults = true;
-    r.continuous = false;
-    let heard = false;
-    let explained = false;
-    r.onresult = (e) => {
-      heard = true;
-      const said = Array.from(e.results, (res) => res[0].transcript).join('').trim();
-      input.value = before ? `${before} ${said}` : said;
-    };
-    r.onerror = (e) => {
-      const why = {
-        'not-allowed': 'Microphone is blocked. Allow it in your browser settings, or type instead.',
-        'service-not-allowed': 'Voice is turned off for this browser. Allow it in settings, or type instead.',
-        'audio-capture': "Couldn't hear anything. Check your microphone is plugged in and working.",
-        'no-speech': "Didn't catch that. Tap the mic and start talking.",
-        network: 'Voice needs an internet connection. Try again, or type instead.',
-      }[e.error];
-      if (why) {
-        explained = true;
-        addMessage('bot', why, 'failed');
-      }
-    };
-    r.onend = () => {
-      // Some phones (notably iPhone home-screen apps) stop at once without any error.
-      if (!heard && !explained && !r.stoppedByUser) {
-        addMessage('bot', "Voice stopped before hearing anything. If timbi is on your home screen, open it in Safari or Chrome instead, or tap the mic on your keyboard.", 'failed');
-      }
-      recognizer = null;
-      mic.classList.remove('listening');
-      mic.setAttribute('aria-pressed', 'false');
-      input.focus();
-    };
-    recognizer = r;
-    mic.classList.add('listening');
-    mic.setAttribute('aria-pressed', 'true');
-    try {
-      r.start();
-    } catch {
-      r.onend();
-    }
-  });
-}
-
 // ---------- Streak ----------
 
 function renderStreak(streak) {
@@ -426,7 +356,6 @@ $('chat-form').addEventListener('submit', async (e) => {
   const input = $('chat-input');
   const send = $('send-button');
   const text = input.value.trim();
-  stopListening();
   if ((!text && !pendingPhoto) || sending) return;
   sending = true;
   send.disabled = true;
