@@ -4,6 +4,7 @@ import { addDays, dayLabel, isFuture, monthGrid, monthTitle } from './lib/days.j
 import { nutrientRows, macroRows } from './lib/nutrition.js';
 import { shrinkImage } from './lib/image.js';
 import * as cache from './lib/cache.js';
+import { weekStart, weekTitle, weekClock, weekMacros, dayColumns, goalLinePct, hitLine, weekNutrients } from './lib/week.js';
 
 const $ = (id) => document.getElementById(id);
 const css = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
@@ -27,7 +28,7 @@ function showLogin() {
 
 async function showApp() {
   $('login-view').hidden = true;
-  $('app-view').hidden = false;
+  showTab('chat', false);
   initCharts();
   refreshStreak();
   await selectDay(today());
@@ -37,6 +38,8 @@ async function showApp() {
 window.addEventListener('bitelog:logout', () => {
   for (const d of document.querySelectorAll('dialog')) if (d.open) d.close();
   $('details-view').hidden = true;
+  $('week-view').hidden = true;
+  $('tabbar').hidden = true;
   $('myfoods-view').hidden = true;
   cache.clearCache();
   showLogin();
@@ -475,16 +478,19 @@ async function loadMyFoods() {
   }
 }
 
+let tabBeforeMyFoods = 'chat';
 function openMyFoods() {
   myFoodsStatus('');
-  $('app-view').hidden = true;
+  tabBeforeMyFoods = currentTab;
+  for (const v of Object.values(TAB_VIEWS)) $(v).hidden = true;
+  $('tabbar').hidden = true;
   $('myfoods-view').hidden = false;
   $('myfoods-back').focus();
   loadMyFoods();
 }
 $('myfoods-back').addEventListener('click', () => {
   $('myfoods-view').hidden = true;
-  $('app-view').hidden = false;
+  showTab(tabBeforeMyFoods);
 });
 
 function openMyFoodEditor(f) {
@@ -647,6 +653,7 @@ function setStatus(text) {
 async function loadDetails() {
   const day = selectedDay;
   $('details-day').textContent = dayLabel(day, today());
+  $('next-day').disabled = day >= today();
   try {
     const data = await api(`/api/today?day=${day}`);
     if (day !== selectedDay) return;
@@ -661,24 +668,183 @@ async function loadDetails() {
   }
 }
 
-function openDetails() {
+// ---------- Nutrients tab: Today / This week ----------
+
+const MODE_KEY = 'timbi.nutriMode';
+let nutriMode = (() => { try { return localStorage.getItem(MODE_KEY) === 'week' ? 'week' : 'today'; } catch { return 'today'; } })();
+
+function setNutriMode(mode) {
+  nutriMode = mode;
+  try { localStorage.setItem(MODE_KEY, mode); } catch { /* just not remembered */ }
+  $('mode-today').setAttribute('aria-pressed', String(mode === 'today'));
+  $('mode-week').setAttribute('aria-pressed', String(mode === 'week'));
+  $('details-title').textContent = mode === 'today' ? 'Nutrition' : 'Nutrients this week';
+  $('nutri-today').hidden = mode !== 'today';
+  $('nutri-week').hidden = mode !== 'week';
   selecting = false;
   chosen.clear();
+  $('select-bar').hidden = true;
+  if (mode === 'today') loadDetails();
+  else loadNutriWeek();
+}
+
+function openNutrients(mode = nutriMode) {
   setStatus('');
-  $('app-view').hidden = true;
-  $('details-view').hidden = false;
-  $('details-back').focus();
+  setNutriMode(mode);
+}
+
+$('mode-today').addEventListener('click', () => setNutriMode('today'));
+$('mode-week').addEventListener('click', () => setNutriMode('week'));
+$('more-button').addEventListener('click', () => { nutriMode = 'today'; showTab('nutrients'); });
+$('prev-day').addEventListener('click', () => { selectDay(addDays(selectedDay, -1)); setStatus(''); loadDetails(); });
+$('next-day').addEventListener('click', () => {
+  if (selectedDay >= today()) return;
+  selectDay(addDays(selectedDay, 1));
+  setStatus('');
   loadDetails();
+});
+
+function weekRow(r) {
+  const li = barRow(r, r.text === '—');
+  if (r.tag) li.querySelector('.name').append(tagEl(r.tag));
+  const sub = document.createElement('p');
+  sub.className = 'sub';
+  sub.textContent = r.avg;
+  li.append(sub);
+  return li;
 }
 
-function closeDetails() {
-  $('details-view').hidden = true;
-  $('app-view').hidden = false;
-  loadDay(selectedDay); // totals may have changed
+async function loadNutriWeek() {
+  const st = $('nutri-week-status');
+  try {
+    const w = await fetchWeek();
+    if (nutriMode !== 'week') return;
+    st.hidden = true;
+    $('nutri-week-range').textContent = `${weekTitle(w.start)} · day ${weekClock(w.days, today()).dayNumber} of 7`;
+    const n = weekNutrients(w.days, today());
+    $('reach-rows').replaceChildren(...n.reach.map(weekRow));
+    $('limit-rows').replaceChildren(...n.limit.map(weekRow));
+    $('nutri-week-note').hidden = !n.partial;
+  } catch (ex) {
+    if (ex.status !== 401) { st.textContent = "Couldn't load this week. Check your connection and try again."; st.hidden = false; }
+  }
 }
 
-$('more-button').addEventListener('click', openDetails);
-$('details-back').addEventListener('click', closeDetails);
+// ---------- Week tab ----------
+
+const fetchWeek = async () => {
+  const start = weekStart(today());
+  return { start, ...(await api(`/api/week?start=${start}`)) };
+};
+
+function tagEl(tag) {
+  const t = document.createElement('span');
+  t.className = `tag ${tag.tone}`;
+  t.textContent = tag.text;
+  return t;
+}
+
+function bigCard(m) {
+  const card = document.createElement('section');
+  card.className = `card block week-card${m.over ? ' over' : ''}`;
+  const head = document.createElement('div');
+  head.className = 'block-head';
+  const h = document.createElement('h2');
+  h.className = 'block-title';
+  h.textContent = m.label;
+  head.append(h);
+  if (m.tag) head.append(tagEl(m.tag));
+  const nums = document.createElement('p');
+  nums.className = 'week-nums';
+  const b = document.createElement('b');
+  b.textContent = m.total;
+  const of = document.createElement('span');
+  of.className = 'muted';
+  of.textContent = ` / ${m.budget}`;
+  nums.append(b, of);
+  const track = document.createElement('div');
+  track.className = 'bar-track';
+  const fill = document.createElement('div');
+  fill.className = 'bar-fill';
+  fill.style.width = `${m.pct}%`;
+  track.append(fill);
+  const left = document.createElement('p');
+  left.className = 'note';
+  left.textContent = m.left;
+  card.append(head, nums, track, left);
+  return card;
+}
+
+function renderWeek(w) {
+  const t = today();
+  $('week-range').textContent = weekTitle(w.start);
+  $('week-daynum').textContent = `Day ${weekClock(w.days, t).dayNumber} of 7`;
+  const [protein, kcal, carbs, fat] = weekMacros(w.days, w.goals, t);
+  $('week-big').replaceChildren(bigCard(protein), bigCard(kcal));
+  $('week-small').replaceChildren(...[carbs, fat].map((m) => barRow({ label: m.label, text: m.total, refText: `/ ${m.budget}`, pct: m.pct, over: m.over })));
+
+  const goal = w.goals.protein || 0;
+  $('byday-goal').textContent = `line = ${fmt(goal)}g`;
+  const box = $('byday');
+  const line = document.createElement('div');
+  line.className = 'goal-line';
+  line.style.bottom = `calc(1.2rem + ${1.1 * goalLinePct(w.days, 'protein', goal)}px)`; // letter row + 110px plot
+  const cols = dayColumns(w.days, 'protein', goal, t).map((c) => {
+    const col = document.createElement('button');
+    col.type = 'button';
+    col.className = `col ${c.state}`;
+    col.disabled = c.state === 'future';
+    col.setAttribute('aria-label', `${dayLabel(c.day, t)}: ${c.value}g protein`);
+    const v = document.createElement('span');
+    v.className = 'col-val';
+    v.textContent = c.state === 'future' ? '' : String(c.value);
+    const bar = document.createElement('span');
+    bar.className = 'col-bar';
+    bar.style.height = c.state === 'future' ? '' : `${c.height}%`;
+    const plot = document.createElement('span');
+    plot.className = 'col-plot';
+    plot.append(bar);
+    const letter = document.createElement('span');
+    letter.className = 'col-day';
+    letter.textContent = c.letter;
+    col.append(v, plot, letter);
+    col.addEventListener('click', () => { selectDay(c.day); nutriMode = 'today'; showTab('nutrients'); });
+    return col;
+  });
+  box.replaceChildren(line, ...cols);
+  $('byday-note').textContent = hitLine(w.days, 'protein', goal, 'g', t);
+}
+
+async function loadWeek() {
+  const st = $('week-status');
+  try {
+    const w = await fetchWeek();
+    st.hidden = true;
+    renderWeek(w);
+  } catch (ex) {
+    if (ex.status !== 401) { st.textContent = "Couldn't load this week. Check your connection and try again."; st.hidden = false; }
+  }
+}
+
+// ---------- Tabs ----------
+
+const TAB_VIEWS = { week: 'week-view', chat: 'app-view', nutrients: 'details-view' };
+let currentTab = 'chat';
+
+function showTab(name, load = true) {
+  currentTab = name;
+  for (const [tab, view] of Object.entries(TAB_VIEWS)) $(view).hidden = tab !== name;
+  $('tabbar').hidden = false;
+  for (const b of document.querySelectorAll('.tab')) {
+    if (b.dataset.tab === name) b.setAttribute('aria-current', 'page');
+    else b.removeAttribute('aria-current');
+  }
+  if (!load) return;
+  if (name === 'chat') loadDay(selectedDay).then(scrollToLatest); // totals may have changed
+  else { window.scrollTo(0, 0); if (name === 'week') loadWeek(); else openNutrients(); }
+}
+
+for (const b of document.querySelectorAll('.tab')) b.addEventListener('click', () => showTab(b.dataset.tab));
 $('select-button').addEventListener('click', () => {
   selecting = !selecting;
   chosen.clear();

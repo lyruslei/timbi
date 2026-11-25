@@ -32,7 +32,7 @@
   </main>
 
   <!-- App -->
-  <div id="app-view" class="app" hidden>
+  <div id="app-view" class="app tabbed" hidden>
     <header class="top">
       <h1 class="wordmark" aria-label="timbi">t<span class="i">ı</span>mb<span class="i">ı</span></h1>
       <span id="streak" class="streak" hidden><span aria-hidden="true">🔥</span><b id="streak-n">0</b></span>
@@ -98,15 +98,60 @@
     </div>
   </div>
 
-  <!-- Nutrition screen -->
-  <div id="details-view" class="app details" hidden>
-    <header class="details-top">
-      <button id="details-back" class="back-button" type="button"><span aria-hidden="true">‹</span> Back</button>
+  <!-- Week tab -->
+  <div id="week-view" class="app details tabbed" hidden>
+    <header class="details-top week-head">
+      <h1 class="title">This week</h1>
+      <span id="week-daynum" class="muted"></span>
     </header>
-    <h1 class="title">Nutrition</h1>
-    <p id="details-day" class="details-day"></p>
-
+    <p id="week-range" class="details-day"></p>
     <div class="details-scroll">
+      <p id="week-status" class="note" role="status" hidden></p>
+      <div id="week-big"></div>
+      <ul class="card block bars small-macros" id="week-small"></ul>
+      <section class="card block" aria-labelledby="byday-title">
+        <div class="block-head">
+          <h2 id="byday-title" class="block-title">Protein by day</h2>
+          <span id="byday-goal" class="muted small"></span>
+        </div>
+        <div id="byday" class="byday"></div>
+        <p id="byday-note" class="note"></p>
+      </section>
+    </div>
+  </div>
+
+  <!-- Nutrients tab: today's Nutrition screen, or this week's nutrients -->
+  <div id="details-view" class="app details tabbed" hidden>
+    <div class="seg" role="group" aria-label="Show nutrients for">
+      <button type="button" id="mode-today" class="seg-btn" aria-pressed="true">Today</button>
+      <button type="button" id="mode-week" class="seg-btn" aria-pressed="false">This week</button>
+    </div>
+    <h1 id="details-title" class="title">Nutrition</h1>
+
+    <div id="nutri-week" class="details-scroll" hidden>
+      <p id="nutri-week-range" class="details-day"></p>
+      <p id="nutri-week-status" class="note" role="status" hidden></p>
+      <section class="card block" aria-labelledby="reach-title">
+        <h2 id="reach-title" class="block-title">Get enough</h2>
+        <ul id="reach-rows" class="bars"></ul>
+      </section>
+      <section class="card block" aria-labelledby="limit-title">
+        <h2 id="limit-title" class="block-title">Stay under</h2>
+        <ul id="limit-rows" class="bars"></ul>
+      </section>
+      <p id="nutri-week-note" class="note" hidden>Some foods this week were logged before nutrients were tracked, so these totals are missing or may be low.</p>
+    </div>
+
+    <div id="nutri-today" class="details-scroll">
+    <div class="day-step">
+      <button type="button" id="prev-day" class="icon-button" aria-label="Previous day">
+        <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path fill="currentColor" d="M15 6l-6 6 6 6z"/></svg>
+      </button>
+      <p id="details-day" class="details-day"></p>
+      <button type="button" id="next-day" class="icon-button" aria-label="Next day">
+        <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path fill="currentColor" d="M9 6l6 6-6 6z"/></svg>
+      </button>
+    </div>
       <section class="card block" aria-labelledby="macros-title">
         <h2 id="macros-title" class="block-title">Macros</h2>
         <ul id="macro-rows" class="bars"></ul>
@@ -150,6 +195,22 @@
       </section>
     </div>
   </div>
+
+  <!-- Tabs: Week · Chat · Nutrients -->
+  <nav id="tabbar" class="tabbar" aria-label="Pages" hidden>
+    <button type="button" class="tab" data-tab="week">
+      <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M4 7a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2zM4 10h16M8 3v4M16 3v4M8 14h1M11.5 14h1M15 14h1M8 17h1M11.5 17h1"/></svg>
+      Week
+    </button>
+    <button type="button" class="tab" data-tab="chat">
+      <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" d="M4 19.5l1.4-3.6A8 8 0 1 1 8.3 18.7z"/></svg>
+      Chat
+    </button>
+    <button type="button" class="tab" data-tab="nutrients">
+      <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M5 21c.5-4.5 2.5-8 6-10M9 18c-4-3-3-10 2-12s9-1 9-1-1 6-3 9-5 5-8 4z"/></svg>
+      Nutrients
+    </button>
+  </nav>
 
   <!-- Settings menu -->
   <dialog id="menu-dialog" class="sheet" aria-labelledby="menu-title">

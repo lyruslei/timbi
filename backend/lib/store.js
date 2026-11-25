@@ -27,7 +27,7 @@ export function createStore(supabase) {
         .eq('day', day).order('created_at').order('id'));
     },
     async getEntriesRange(fromDay, toDay) {
-      return must(await supabase.from('entries').select('day, kcal, protein, carbs, fat')
+      return must(await supabase.from('entries').select('day, kcal, protein, carbs, fat, fiber, sugar, sat_fat, sodium, cholesterol, potassium')
         .gte('day', fromDay).lte('day', toDay).limit(5000));
     },
     // One transaction: see log_turn_v2 in supabase/schema.sql.
